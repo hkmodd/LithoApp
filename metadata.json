@@ -1,0 +1,5 @@
+{
+  "name": "LithoApp",
+  "description": "Neural 2D to 3D surface reconstruction and STL generation.",
+  "requestFramePermissions": []
+}
