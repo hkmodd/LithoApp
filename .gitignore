@@ -1,8 +1,41 @@
+# Dependencies
 node_modules/
-build/
+
+# Build output
 dist/
-coverage/
+dist-single/
+build/
+
+# Rust / WASM
+litho-engine-wasm/target/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
 .DS_Store
-*.log
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Environment
 .env*
 !.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+
+# Misc
+*.tsbuildinfo
+*.zip
+chatdump.txt

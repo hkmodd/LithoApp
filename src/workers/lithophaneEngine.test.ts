@@ -23,7 +23,10 @@ describe('Lithophane Engine Core', () => {
     contrast: 1,
     brightness: 0,
     baseStand: 0,
-    sharpness: 0
+    sharpness: 0,
+    curveAngle: 0,
+    hanger: false,
+    threshold: 128
   };
 
   it('generates a flat lithophane successfully', () => {
@@ -36,7 +39,7 @@ describe('Lithophane Engine Core', () => {
     
     // Ensure no NaN values in positions
     const hasNaN = result.positions.some(p => isNaN(p));
-    expect(hasNaN).toBe(false, 'Positions array contains NaN values');
+    expect(hasNaN, 'Positions array contains NaN values').toBe(false);
   });
 
   it('generates a cylinder successfully', () => {
@@ -44,7 +47,7 @@ describe('Lithophane Engine Core', () => {
     
     expect(result.positions).toBeDefined();
     const hasNaN = result.positions.some(p => isNaN(p));
-    expect(hasNaN).toBe(false, 'Cylinder positions array contains NaN values');
+    expect(hasNaN, 'Cylinder positions array contains NaN values').toBe(false);
   });
 
   it('generates an arc successfully', () => {
@@ -52,7 +55,7 @@ describe('Lithophane Engine Core', () => {
     
     expect(result.positions).toBeDefined();
     const hasNaN = result.positions.some(p => isNaN(p));
-    expect(hasNaN).toBe(false, 'Arc positions array contains NaN values');
+    expect(hasNaN, 'Arc positions array contains NaN values').toBe(false);
   });
 
   it('generates a sphere successfully', () => {
@@ -60,7 +63,7 @@ describe('Lithophane Engine Core', () => {
     
     expect(result.positions).toBeDefined();
     const hasNaN = result.positions.some(p => isNaN(p));
-    expect(hasNaN).toBe(false, 'Sphere positions array contains NaN values');
+    expect(hasNaN, 'Sphere positions array contains NaN values').toBe(false);
   });
 
   it('generates a heart successfully', () => {
@@ -68,7 +71,7 @@ describe('Lithophane Engine Core', () => {
     
     expect(result.positions).toBeDefined();
     const hasNaN = result.positions.some(p => isNaN(p));
-    expect(hasNaN).toBe(false, 'Heart positions array contains NaN values');
+    expect(hasNaN, 'Heart positions array contains NaN values').toBe(false);
   });
 
   it('generates a hanger successfully', () => {
@@ -79,7 +82,7 @@ describe('Lithophane Engine Core', () => {
     expect(resultWithHanger.stats.triangles).toBeGreaterThan(resultWithoutHanger.stats.triangles);
     
     const hasNaN = resultWithHanger.positions.some(p => isNaN(p));
-    expect(hasNaN).toBe(false, 'Hanger positions array contains NaN values');
+    expect(hasNaN, 'Hanger positions array contains NaN values').toBe(false);
   });
 
   it('calculates bounding box correctly', () => {

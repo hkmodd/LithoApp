@@ -1,10 +1,10 @@
-import { MeshEngineResult, ProgressCallback } from './types';
+import { MeshEngineResult, ProgressCallback, LithoParams } from './types';
 
 export function generateLithophane(
   imageData: ImageData,
   width: number,
   height: number,
-  params: any,
+  params: LithoParams,
   postProgress: ProgressCallback
 ): MeshEngineResult {
   const { shape = 'flat', resolution, physicalSize = 100.0, baseThickness, maxThickness, smoothing, invert, borderWidth, frameThickness = 5.0, curveAngle, contrast = 1.0, brightness = 0.0, baseStand = 0.0, sharpness = 0.0, hanger = false } = params;
@@ -51,9 +51,9 @@ export function generateLithophane(
           for (let dy = -borderPxY; dy <= borderPxY; dy++) {
             for (let dx = -borderPxX; dx <= borderPxX; dx++) {
               if (dx * dx + dy * dy <= radiusSq) {
-                const ny = y + dy;
-                const nx = x + dx;
-                if (ny < 0 || ny >= gridH || nx < 0 || nx >= gridW || mask[ny * gridW + nx] === 0) {
+                const checkNy = y + dy;
+                const checkNx = x + dx;
+                if (checkNy < 0 || checkNy >= gridH || checkNx < 0 || checkNx >= gridW || mask[checkNy * gridW + checkNx] === 0) {
                   isBorder = true;
                   break;
                 }
@@ -210,6 +210,7 @@ export function generateLithophane(
   const numVertices = gridW * gridH * 2 + hangerVerticesCount;
   const positions = new Float32Array(numVertices * 3);
   const uvs = new Float32Array(numVertices * 2);
+  const thicknessAttr = new Float32Array(numVertices);
   const indices = [];
 
   // Determine effective curve angle based on shape
@@ -301,16 +302,18 @@ export function generateLithophane(
       positions[topIdx * 3] = topX;
       positions[topIdx * 3 + 1] = topY;
       positions[topIdx * 3 + 2] = topZ;
-      uvs[topIdx * 2] = x / (gridW - 1);
-      uvs[topIdx * 2 + 1] = 1.0 - (y / (gridH - 1));
+      uvs[topIdx * 2] = 1.0 - x / (gridW - 1);
+      uvs[topIdx * 2 + 1] = y / (gridH - 1);
+      thicknessAttr[topIdx] = h_top;
 
       // Bottom vertex
       const botIdx = gridW * gridH + topIdx;
       positions[botIdx * 3] = botX;
       positions[botIdx * 3 + 1] = botY;
       positions[botIdx * 3 + 2] = botZ;
-      uvs[botIdx * 2] = x / (gridW - 1);
-      uvs[botIdx * 2 + 1] = 1.0 - (y / (gridH - 1));
+      uvs[botIdx * 2] = 1.0 - x / (gridW - 1);
+      uvs[botIdx * 2 + 1] = y / (gridH - 1);
+      thicknessAttr[botIdx] = h_top;
     }
   }
 
@@ -471,6 +474,7 @@ export function generateLithophane(
       positions[(vIdx + 0) * 3 + 2] = cz + thickness;
       uvs[(vIdx + 0) * 2] = 0;
       uvs[(vIdx + 0) * 2 + 1] = 0;
+      thicknessAttr[vIdx + 0] = thickness;
       
       // Top face inner
       positions[(vIdx + 1) * 3] = cx + innerR * cos;
@@ -478,6 +482,7 @@ export function generateLithophane(
       positions[(vIdx + 1) * 3 + 2] = cz + thickness;
       uvs[(vIdx + 1) * 2] = 0;
       uvs[(vIdx + 1) * 2 + 1] = 0;
+      thicknessAttr[vIdx + 1] = thickness;
       
       // Bottom face outer
       positions[(vIdx + 2) * 3] = cx + outerR * cos;
@@ -485,6 +490,7 @@ export function generateLithophane(
       positions[(vIdx + 2) * 3 + 2] = cz;
       uvs[(vIdx + 2) * 2] = 0;
       uvs[(vIdx + 2) * 2 + 1] = 0;
+      thicknessAttr[vIdx + 2] = thickness;
       
       // Bottom face inner
       positions[(vIdx + 3) * 3] = cx + innerR * cos;
@@ -492,6 +498,7 @@ export function generateLithophane(
       positions[(vIdx + 3) * 3 + 2] = cz;
       uvs[(vIdx + 3) * 2] = 0;
       uvs[(vIdx + 3) * 2 + 1] = 0;
+      thicknessAttr[vIdx + 3] = thickness;
     }
 
     // Indices for hanger
@@ -522,12 +529,27 @@ export function generateLithophane(
 
   postProgress(95, 'Computing bounding box...');
 
-  // Compute dynamic bounding box
+  // Compute dynamic bounding box (skip masked-out heart vertices)
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
   let minZ = Infinity, maxZ = -Infinity;
   
   for (let i = 0; i < positions.length; i += 3) {
+    // For heart shapes, skip masked-out vertices whose positions are all zero
+    if (shape === 'heart') {
+      const vertIdx = i / 3;
+      // Only consider vertices within the main grid (not hanger vertices)
+      if (vertIdx < gridW * gridH) {
+        const gx = vertIdx % gridW;
+        const gy = Math.floor(vertIdx / gridW);
+        if (mask[gy * gridW + gx] === 0) continue;
+      } else if (vertIdx < gridW * gridH * 2) {
+        const bottomIdx = vertIdx - gridW * gridH;
+        const gx = bottomIdx % gridW;
+        const gy = Math.floor(bottomIdx / gridW);
+        if (mask[gy * gridW + gx] === 0) continue;
+      }
+    }
     const x = positions[i];
     const y = positions[i + 1];
     const z = positions[i + 2];
@@ -544,7 +566,9 @@ export function generateLithophane(
   return {
     positions,
     indices: indicesArray,
+    normals: new Float32Array(0), // computed by worker after engine returns
     uvs,
+    thickness: thicknessAttr,
     stats: {
       vertices: numVertices,
       triangles: indicesArray.length / 3,

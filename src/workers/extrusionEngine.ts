@@ -1,12 +1,13 @@
-import { MeshEngineResult, ProgressCallback } from './types';
+import { MeshEngineResult, ProgressCallback, LithoParams, WasmLithoModule } from './types';
 import { generateLithophane } from './lithophaneEngine';
 
 export function generateExtrusion(
   imageData: ImageData,
   width: number,
   height: number,
-  params: any,
-  postProgress: ProgressCallback
+  params: LithoParams,
+  postProgress: ProgressCallback,
+  wasmModule?: WasmLithoModule | null
 ): MeshEngineResult {
   postProgress(5, 'Thresholding image for extrusion...');
 
@@ -56,5 +57,24 @@ export function generateExtrusion(
     sharpness: 0.0
   };
 
+  // Use WASM if available, otherwise fall back to TS
+  if (wasmModule) {
+    const result = wasmModule.generate_lithophane(
+      newImageData.data,
+      width,
+      height,
+      extrusionParams,
+      postProgress
+    );
+    return {
+      positions: result.positions,
+      indices: result.indices,
+      normals: new Float32Array(0), // computed by worker after engine returns
+      uvs: result.uvs,
+      stats: result.stats,
+    };
+  }
+
   return generateLithophane(newImageData, width, height, extrusionParams, postProgress);
 }
+

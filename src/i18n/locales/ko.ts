@@ -1,0 +1,84 @@
+import type { TranslationKey } from './en';
+
+const ko: Record<TranslationKey, string> = {
+  'app.subtitle': '뉴럴 서피스',
+  'app.parameters': '매개변수',
+  'app.reset': '초기화',
+  'app.swipeDown': '아래로 스와이프',
+  'app.swipeUp': '위로 스와이프',
+  'app.awaitingInput': '입력 대기 중',
+
+  'rotate.title': '기기를 회전해 주세요',
+  'rotate.description': 'LithoApp은 최고의 3D 체험을 위해 모바일 세로 모드에 최적화되어 있습니다.',
+
+  'mode.label': '생성 모드',
+  'mode.lithophane': '리소페인',
+  'mode.extrusion': '로고 압출',
+
+  'upload.label': '소스 이미지',
+  'upload.replace': '이미지 교체',
+  'upload.dropHere': '여기에 이미지 놓기',
+  'upload.tapOrDrop': '탭하거나 이미지를 놓으세요',
+
+  'tab.image': '이미지',
+  'tab.geometry': '지오메트리',
+  'tab.frame': '프레임',
+
+  'image.threshold': '압출 임계값',
+  'image.thresholdHint': '이 값보다 어두운 픽셀은 최대 두께로 압출됩니다.',
+  'image.contrast': '대비',
+  'image.brightness': '밝기',
+  'image.edgeEnhancement': '엣지 향상',
+  'image.edgeHint': '3D 프린팅 시 미세한 디테일을 보존하기 위해 로컬 대비를 높입니다.',
+  'image.invertDepth': '깊이 극성 반전',
+
+  // Image editor (English fallback)
+  'editor.title': 'Edit Image',
+  'editor.rotateLeft': 'Rotate Left',
+  'editor.rotateRight': 'Rotate Right',
+  'editor.flipH': 'Flip Horizontal',
+  'editor.flipV': 'Flip Vertical',
+  'editor.crop': 'Crop',
+  'editor.gamma': 'Gamma',
+  'editor.exposure': 'Exposure',
+  'editor.reset': 'Reset Edits',
+  'editor.applyCrop': 'Apply Crop',
+  'editor.cancelCrop': 'Cancel',
+
+  'geo.shape': '형상',
+  'geo.flat': '평면',
+  'geo.arc': '아크',
+  'geo.cylinder': '원통',
+  'geo.sphere': '구체',
+  'geo.heart': '하트',
+  'geo.maxDimension': '최대 치수',
+  'geo.meshDensity': '메시 밀도 (LOD)',
+  'geo.baseThickness': '기본 두께 (Z-min)',
+  'geo.maxThickness': '최대 두께 (Z-max)',
+  'geo.smoothing': '라플라시안 스무딩',
+  'geo.smoothingUnit': '회',
+
+  'frame.borderWidth': '테두리 너비',
+  'frame.frameThickness': '프레임 두께',
+  'frame.baseStand': '받침 깊이',
+  'frame.addHanger': '걸이 추가',
+  'frame.hangerHint': '상단 중앙에 5mm 링을 추가하여 리소페인을 쉽게 걸 수 있습니다.',
+  'frame.curveAngle': '곡선 각도',
+  'frame.fullCylinder': '전체 원통 모드 활성. 방수 3D 프린팅을 위해 가장자리가 용접됩니다.',
+
+  'export.triangles': '삼각형',
+  'export.estSize': '예상 크기',
+  'export.colorMirrored': '컬러 (미러)',
+  'export.colorTooltip': '컬러 프로파일 다운로드 (프린트 뒷면에 부착할 미러 버전)',
+  'export.stlTooltip': 'STL로 내보내기',
+  'export.objTooltip': 'OBJ로 내보내기 (UV 포함)',
+
+      'nav.preview': '????',
+  'nav.image': '???',
+  'nav.geometry': '?????',
+  'nav.export': '????',
+  'viewport.colorMap': '?? ?',
+  'lang.label': '언어',
+};
+
+export default ko;

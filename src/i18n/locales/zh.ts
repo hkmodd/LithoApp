@@ -1,0 +1,84 @@
+import type { TranslationKey } from './en';
+
+const zh: Record<TranslationKey, string> = {
+  'app.subtitle': '神经表面',
+  'app.parameters': '参数',
+  'app.reset': '重置',
+  'app.swipeDown': '向下滑动',
+  'app.swipeUp': '向上滑动',
+  'app.awaitingInput': '等待输入',
+
+  'rotate.title': '请旋转您的设备',
+  'rotate.description': 'LithoApp 在移动设备上优化为竖屏模式，以提供最佳 3D 体验。',
+
+  'mode.label': '生成模式',
+  'mode.lithophane': '透光浮雕',
+  'mode.extrusion': '标志挤出',
+
+  'upload.label': '源图像',
+  'upload.replace': '替换图像',
+  'upload.dropHere': '将图像拖放到此处',
+  'upload.tapOrDrop': '点击或拖放图像',
+
+  'tab.image': '图像',
+  'tab.geometry': '几何',
+  'tab.frame': '边框',
+
+  'image.threshold': '挤出阈值',
+  'image.thresholdHint': '比此值更暗的像素将被挤出到最大厚度。',
+  'image.contrast': '对比度',
+  'image.brightness': '亮度',
+  'image.edgeEnhancement': '边缘增强',
+  'image.edgeHint': '增加局部对比度以在3D打印时保留精细细节。',
+  'image.invertDepth': '反转深度极性',
+
+  // Image editor (English fallback)
+  'editor.title': 'Edit Image',
+  'editor.rotateLeft': 'Rotate Left',
+  'editor.rotateRight': 'Rotate Right',
+  'editor.flipH': 'Flip Horizontal',
+  'editor.flipV': 'Flip Vertical',
+  'editor.crop': 'Crop',
+  'editor.gamma': 'Gamma',
+  'editor.exposure': 'Exposure',
+  'editor.reset': 'Reset Edits',
+  'editor.applyCrop': 'Apply Crop',
+  'editor.cancelCrop': 'Cancel',
+
+  'geo.shape': '形状',
+  'geo.flat': '平面',
+  'geo.arc': '弧形',
+  'geo.cylinder': '圆柱',
+  'geo.sphere': '球体',
+  'geo.heart': '心形',
+  'geo.maxDimension': '最大尺寸',
+  'geo.meshDensity': '网格密度 (LOD)',
+  'geo.baseThickness': '底座厚度 (Z-min)',
+  'geo.maxThickness': '最大厚度 (Z-max)',
+  'geo.smoothing': '拉普拉斯平滑',
+  'geo.smoothingUnit': '次',
+
+  'frame.borderWidth': '边框宽度',
+  'frame.frameThickness': '框架厚度',
+  'frame.baseStand': '底座深度',
+  'frame.addHanger': '添加悬挂钩',
+  'frame.hangerHint': '在顶部中央添加5毫米环，方便悬挂（例如作为装饰品）。',
+  'frame.curveAngle': '曲线角度',
+  'frame.fullCylinder': '全圆柱模式已激活。边缘焊接以实现防水3D打印。',
+
+  'export.triangles': '三角形',
+  'export.estSize': '预计大小',
+  'export.colorMirrored': '颜色（镜像）',
+  'export.colorTooltip': '下载颜色配置文件（镜像版本，贴于打印背面）',
+  'export.stlTooltip': '导出为 STL',
+  'export.objTooltip': '导出为 OBJ（含UV）',
+
+      'nav.preview': '??',
+  'nav.image': '??',
+  'nav.geometry': '??',
+  'nav.export': '??',
+  'viewport.colorMap': '????',
+  'lang.label': '语言',
+};
+
+export default zh;

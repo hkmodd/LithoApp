@@ -31,3 +31,312 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Mobile-friendly sliders: bigger touch targets, harder to accidentally activate */
+@media (pointer: coarse) {
+  input[type="range"] {
+    min-height: 44px;       /* Apple HIG minimum touch target */
+    padding: 16px 0;        /* generous vertical padding = scroll forgiveness */
+    margin: -8px 0;         /* reclaim visual space eaten by padding */
+    cursor: grab;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORT PANEL — Premium glassmorphism export experience
+   ═══════════════════════════════════════════════════════════ */
+
+.export-panel {
+  padding: 1rem 1.25rem 1.25rem;
+  background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.7) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+/* ─── Stats Row ────────────────────────────────────────── */
+.export-stats {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.export-stat-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.export-stat-card:hover {
+  border-color: rgba(37,99,235,0.2);
+  background: rgba(37,99,235,0.04);
+}
+
+.export-stat-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.export-stat-label {
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: var(--font-mono);
+}
+
+.export-stat-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.export-stat-accent {
+  color: var(--color-neural-blue);
+}
+
+/* ─── Export Actions ───────────────────────────────────── */
+.export-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ─── Base Button ──────────────────────────────────────── */
+.export-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 0.5rem;
+  border: none;
+  border-radius: 0.875rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
+.export-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.export-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+/* ─── Ghost Button (Color Profile) ─────────────────────── */
+.export-btn-ghost {
+  flex: 1;
+  color: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.export-btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.export-btn-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+/* ─── Primary Button (STL) ─────────────────────────────── */
+.export-btn-primary {
+  flex: 1.2;
+  color: white;
+  background: linear-gradient(135deg, #2563EB 0%, #1d4ed8 50%, #3b82f6 100%);
+  box-shadow:
+    0 0 20px rgba(37,99,235,0.25),
+    0 4px 12px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.export-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 30px rgba(37,99,235,0.4),
+    0 8px 24px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+/* ─── Secondary Button (OBJ) ──────────────────────────── */
+.export-btn-secondary {
+  flex: 1.2;
+  color: white;
+  background: linear-gradient(135deg, #7C3AED 0%, #6d28d9 50%, #8b5cf6 100%);
+  box-shadow:
+    0 0 20px rgba(124,58,237,0.2),
+    0 4px 12px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.export-btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 30px rgba(124,58,237,0.35),
+    0 8px 24px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+/* ─── Format Label ─────────────────────────────────────── */
+.export-btn-format {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+
+/* ─── Shimmer Effect ───────────────────────────────────── */
+.export-btn-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255,255,255,0.08) 40%,
+    rgba(255,255,255,0.14) 50%,
+    rgba(255,255,255,0.08) 60%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+
+.export-btn-primary:not(:disabled) .export-btn-shimmer,
+.export-btn-secondary:not(:disabled) .export-btn-shimmer {
+  animation: shimmer 3.5s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.export-btn-secondary:not(:disabled) .export-btn-shimmer {
+  animation-delay: 2.2s;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  30%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ─── Viewport Regeneration Overlay ─── */
+.viewport-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 5, 0.45);
+  backdrop-filter: blur(12px) saturate(0.7);
+  -webkit-backdrop-filter: blur(12px) saturate(0.7);
+  pointer-events: none; /* allow orbit controls underneath */
+}
+
+.regen-rings {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.regen-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  animation: regen-pulse 3s ease-out infinite;
+}
+
+.regen-ring-1 { width: 80px;  height: 80px;  animation-delay: 0s; }
+.regen-ring-2 { width: 140px; height: 140px; animation-delay: 0.7s; }
+.regen-ring-3 { width: 200px; height: 200px; animation-delay: 1.4s; }
+
+@keyframes regen-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+    border-color: rgba(37, 99, 235, 0.3);
+  }
+  40% {
+    opacity: 1;
+    border-color: rgba(37, 99, 235, 0.2);
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+    border-color: rgba(37, 99, 235, 0);
+  }
+}
+
+.regen-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 1;
+}
+
+.regen-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(37, 99, 235, 0.15);
+  border-top-color: #2563EB;
+  animation: regen-spin 0.8s linear infinite;
+}
+
+@keyframes regen-spin {
+  to { transform: rotate(360deg); }
+}
+
+.regen-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.regen-progress-track {
+  width: 100px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.regen-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563EB, #60a5fa);
+  border-radius: 1px;
+}

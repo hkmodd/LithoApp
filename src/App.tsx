@@ -1,12 +1,23 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, Download, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Cylinder, Square, Circle, Heart, Link, Palette } from 'lucide-react';
-import { encodeBinarySTL } from './utils/stlEncoder';
-import { encodeOBJ } from './utils/objEncoder';
-import { generateColorProfile } from './utils/colorProfile';
+import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
+import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen } from 'lucide-react';
 import LithoPreview from './components/LithoPreview';
+import ViewportOverlay from './components/ViewportOverlay';
+import MobileLayout from './components/MobileLayout';
+import BootSplash from './components/BootSplash';
+import ImageTab from './components/tabs/ImageTab';
+import GeometryTab from './components/tabs/GeometryTab';
+import FrameTab from './components/tabs/FrameTab';
+import ExportBar from './components/ExportBar';
+import ImageEditor from './components/ImageEditor';
+import LanguageSelector from './components/LanguageSelector';
 import { cn } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from './store/useAppStore';
+import { useHistoryStore } from './store/useHistoryStore';
+import { useProjectStore } from './store/useProjectStore';
+import type { LithoParams } from './workers/types';
+import { useTranslation } from './i18n';
+import { applyEdits, hasEdits } from './lib/imageProcessor';
 
 export default function App() {
   const {
@@ -18,106 +29,235 @@ export default function App() {
     isProcessing,
     progress,
     setProcessing,
+    setRegenerating,
     setProgress,
     meshData,
     setMeshData,
     lithoParams,
     updateLithoParams,
-    resetLithoParams
+    resetLithoParams,
+    originalImage,
+    setOriginalImage,
+    imageEdits,
+    resetImageEdits
   } = useAppStore();
+  const { t } = useTranslation();
 
-  const {
-    shape,
-    resolution,
-    physicalSize,
-    baseThickness,
-    maxThickness,
-    borderWidth,
-    frameThickness,
-    baseStand,
-    curveAngle,
-    smoothing,
-    contrast,
-    brightness,
-    sharpness,
-    invert,
-    hanger,
-    threshold
-  } = lithoParams;
   
   const [activeTab, setActiveTab] = useState<'image' | 'geometry' | 'frame'>('image');
   const [isControlsOpen, setIsControlsOpen] = useState(true);
   
   const [wireframe, setWireframe] = useState(false);
   const [simulateLight, setSimulateLight] = useState(true);
+  const [showTexture, setShowTexture] = useState(false);
+  const [booted, setBooted] = useState(false);
   
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const generationIdRef = useRef(0);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastProgressTimeRef = useRef(0);
 
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Undo/Redo
+  const canUndo = useHistoryStore((s) => s.canUndo);
+  const canRedo = useHistoryStore((s) => s.canRedo);
+  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Project save/load
+  const { isDirty, lastSavedAt, saveToLocal, exportToFile, importFromFile } = useProjectStore();
+  const projectImportRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const checkLayout = () => {
       setIsMobile(window.innerWidth < 768);
-      setIsLandscape(window.innerWidth > window.innerHeight && window.innerWidth < 1024);
+      // Only show landscape warning on phones (<768px), not tablets
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerWidth < 768);
     };
     checkLayout();
     window.addEventListener('resize', checkLayout);
+    // Mark booted after initial layout check
+    setBooted(true);
     return () => window.removeEventListener('resize', checkLayout);
   }, []);
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('./workers/meshWorker.ts', import.meta.url), { type: 'module' });
     workerRef.current.onmessage = (e) => {
+      const currentGenId = generationIdRef.current;
+      // Discard stale responses (race-condition guard)
+      if (e.data.id !== undefined && e.data.id !== currentGenId) return;
+
       if (e.data.type === 'progress') {
-        setProgress({ percent: e.data.progress, message: e.data.message });
+        // Throttle progress updates to max 4/sec to avoid store flood
+        const now = performance.now();
+        if (now - lastProgressTimeRef.current >= 250 || e.data.progress >= 99) {
+          lastProgressTimeRef.current = now;
+          setProgress({ percent: e.data.progress, message: e.data.message });
+        }
+      } else if (e.data.type === 'error') {
+        console.error('[LithoApp] Worker error:', e.data.message);
+        setProcessing(false);
+        setRegenerating(false);
+        setProgress(null);
       } else if (e.data.type === 'complete') {
-        setMeshData({
-          positions: e.data.positions,
-          indices: e.data.indices,
-          uvs: e.data.uvs,
-          stats: e.data.stats
+        // Use startTransition so geometry build doesn't block sliders
+        startTransition(() => {
+          setMeshData({
+            positions: e.data.positions,
+            indices: e.data.indices,
+            normals: e.data.normals,
+            uvs: e.data.uvs,
+            thickness: e.data.thickness,
+            stats: e.data.stats
+          });
         });
         setProcessing(false);
+        setRegenerating(false);
         setProgress(null);
       }
     };
     return () => {
       workerRef.current?.terminate();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [setMeshData, setProcessing, setProgress]);
+  }, [setMeshData, setProcessing, setRegenerating, setProgress]);
 
-  const processImage = useCallback((imgData: { data: ImageData, width: number, height: number }, params: any) => {
+  // ── History: initialize + subscribe to lithoParams changes ─────────
+  useEffect(() => {
+    // Initialize history with current params
+    useHistoryStore.getState().init(useAppStore.getState().lithoParams);
+
+    // Subscribe to lithoParams changes and push to history (debounced)
+    const unsub = useAppStore.subscribe((state, prevState) => {
+      if (state.lithoParams === prevState.lithoParams) return;
+      if (state._skipHistory) return; // skip undo/redo-triggered updates
+
+      // Debounce rapid slider changes — coalesce into one history entry
+      if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+      historyDebounceRef.current = setTimeout(() => {
+        useHistoryStore.getState().push(state.lithoParams);
+      }, 500);
+    });
+
+    return () => {
+      unsub();
+      if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+    };
+  }, []);
+
+  // ── Project restore from localStorage on mount ──────────────────
+  useEffect(() => {
+    useProjectStore.getState().loadFromLocal();
+  }, []);
+
+  // ── Auto-save to localStorage when params/mode/image change (debounced 2s) ──
+  useEffect(() => {
+    const unsub = useAppStore.subscribe((state, prevState) => {
+      const changed =
+        state.lithoParams !== prevState.lithoParams ||
+        state.mode !== prevState.mode ||
+        state.imageSrc !== prevState.imageSrc;
+      if (!changed) return;
+
+      useProjectStore.getState().markDirty();
+
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+        if (useProjectStore.getState().autoSaveEnabled) {
+          useProjectStore.getState().saveToLocal();
+        }
+      }, 2000);
+    });
+
+    return () => {
+      unsub();
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, []);
+
+  // ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isModifier = e.ctrlKey || e.metaKey;
+      if (!isModifier || e.key.toLowerCase() !== 'z') return;
+
+      // Don't fire if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      e.preventDefault();
+
+      if (e.shiftKey) {
+        // Redo
+        const restored = useHistoryStore.getState().redo();
+        if (restored) updateLithoParams({ ...restored, _skipHistory: true });
+      } else {
+        // Undo
+        const restored = useHistoryStore.getState().undo();
+        if (restored) updateLithoParams({ ...restored, _skipHistory: true });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [updateLithoParams]);
+
+  const processImage = useCallback((imgData: { data: ImageData, width: number, height: number }, params: LithoParams) => {
     if (!workerRef.current) return;
+    const id = ++generationIdRef.current;
     setProcessing(true);
+    setRegenerating(true);
+    lastProgressTimeRef.current = 0;
     setProgress({ percent: 0, message: 'Starting...' });
     workerRef.current.postMessage({
+      id,
       mode: mode,
       imageData: imgData.data,
       width: imgData.width,
       height: imgData.height,
       params
     });
-  }, [mode, setProcessing, setProgress]);
+  }, [mode, setProcessing, setRegenerating, setProgress]);
 
-  // Re-process when parameters change
+  // Re-process when parameters change (debounced to avoid flooding the worker)
   useEffect(() => {
-    if (imageData) {
+    if (!imageData) return;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
       processImage(imageData, lithoParams);
-    }
+    }, 250);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
   }, [lithoParams, imageData, processImage]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Re-apply image edits whenever they change
+  const editDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!originalImage) return;
+    if (editDebounceRef.current) clearTimeout(editDebounceRef.current);
+    editDebounceRef.current = setTimeout(() => {
+      const result = applyEdits(originalImage, imageEdits);
+      setImage(result.src, { data: result.data, width: result.width, height: result.height });
+    }, 150);
+    return () => { if (editDebounceRef.current) clearTimeout(editDebounceRef.current); };
+  }, [imageEdits, originalImage, setImage]);
 
+  // Shared file loading logic (used by both click-upload and drag & drop)
+  const loadImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       const src = event.target?.result as string;
-      
       const img = new Image();
       img.onload = () => {
+        // Store original image for non-destructive editing
+        setOriginalImage(img);
+        resetImageEdits();
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
@@ -126,51 +266,70 @@ export default function App() {
         ctx.drawImage(img, 0, 0);
         const data = ctx.getImageData(0, 0, img.width, img.height);
         setImage(src, { data, width: img.width, height: img.height });
-        setIsControlsOpen(true); // Open controls when image is loaded
+        setIsControlsOpen(true);
       };
       img.src = src;
     };
     reader.readAsDataURL(file);
   };
 
-  const handleExportSTL = () => {
-    if (!meshData) return;
-    const blob = encodeBinarySTL(meshData.positions, meshData.indices);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'lithophane.stl';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) loadImageFile(file);
   };
 
-  const handleExportOBJ = () => {
-    if (!meshData) return;
-    const blob = encodeOBJ(meshData.positions, meshData.indices, meshData.uvs);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'lithophane.obj';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
   };
 
-  const handleExportColorProfile = async () => {
-    if (!imageSrc) return;
-    try {
-      const dataUrl = await generateColorProfile(imageSrc, lithoParams);
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = 'lithophane_color_profile.png';
-      a.click();
-    } catch (err) {
-      console.error('Failed to generate color profile:', err);
-    }
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) loadImageFile(file);
+  };
+
+
+
+  // Mobile: use dedicated layout
+  if (isMobile) {
+    return (
+      <>
+        <BootSplash ready={booted} />
+        <MobileLayout
+          wireframe={wireframe}
+          setWireframe={setWireframe}
+          simulateLight={simulateLight}
+          setSimulateLight={setSimulateLight}
+          showTexture={showTexture}
+          setShowTexture={setShowTexture}
+          isDragging={isDragging}
+          handleDragOver={handleDragOver}
+          handleDragLeave={handleDragLeave}
+          handleDrop={handleDrop}
+          fileInputRef={fileInputRef}
+          handleImageUpload={handleImageUpload}
+          isMobile={true}
+        />
+      </>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="fixed inset-0 bg-[#050505] text-white overflow-hidden font-sans selection:bg-[#2563EB]/30">
       
+      {/* Boot Splash */}
+      <BootSplash ready={booted} />
       {/* Landscape Warning Overlay */}
       <AnimatePresence>
         {isLandscape && (
@@ -183,9 +342,9 @@ export default function App() {
             <div className="w-16 h-16 border-2 border-white/20 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
               <div className="w-8 h-12 border-2 border-white/50 rounded-lg transform rotate-90" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">Please Rotate Your Device</h2>
+            <h2 className="text-xl font-semibold mb-2">{t('rotate.title')}</h2>
             <p className="text-sm text-gray-400 max-w-xs">
-              LithoApp is optimized for portrait mode on mobile devices to provide the best 3D viewing experience.
+              {t('rotate.description')}
             </p>
           </motion.div>
         )}
@@ -202,17 +361,27 @@ export default function App() {
               className="text-center space-y-6 opacity-40"
             >
               <Box className="w-24 h-24 mx-auto text-gray-700 stroke-[1]" />
-              <p className="text-sm font-mono uppercase tracking-[0.3em] text-gray-500">Awaiting Neural Input</p>
+              <p className="text-sm font-mono uppercase tracking-[0.3em] text-gray-500">{t('app.awaitingInput')}</p>
             </motion.div>
           </div>
         ) : (
           <LithoPreview 
             positions={meshData?.positions || null} 
             indices={meshData?.indices || null} 
+            normals={meshData?.normals || null}
+            uvs={meshData?.uvs || null}
+            thickness={meshData?.thickness || null}
             wireframe={wireframe} 
             simulateLight={simulateLight}
+            textureUrl={imageSrc}
+            showTexture={showTexture}
+            minThickness={lithoParams.baseThickness}
+            maxThickness={lithoParams.maxThickness}
           />
         )}
+
+        {/* Regeneration overlay — blurs viewport only, controls stay interactive */}
+        <ViewportOverlay />
       </div>
 
       {/* Top Navigation Bar (Glassmorphism) */}
@@ -229,7 +398,7 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-sm font-semibold tracking-tight leading-none">LithoApp</h1>
-                <p className="text-[10px] text-gray-400 font-mono uppercase tracking-wider mt-1">Neural Surface</p>
+                <p className="text-[10px] text-gray-400 font-mono uppercase tracking-wider mt-1">{t('app.subtitle')}</p>
               </div>
             </div>
 
@@ -263,20 +432,66 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto"
+                className="flex gap-2"
               >
-                <button 
-                  onClick={() => setSimulateLight(!simulateLight)}
-                  className={cn("p-2.5 rounded-xl transition-all", simulateLight ? "bg-white/10 text-yellow-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
-                >
-                  <Lightbulb className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setWireframe(!wireframe)}
-                  className={cn("p-2.5 rounded-xl transition-all", wireframe ? "bg-white/10 text-[#2563EB] shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
-                >
-                  <Layers className="w-4 h-4" />
-                </button>
+                {/* Undo / Redo */}
+                <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
+                  <button
+                    onClick={() => {
+                      const restored = useHistoryStore.getState().undo();
+                      if (restored) updateLithoParams({ ...restored, _skipHistory: true });
+                    }}
+                    disabled={!canUndo}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all",
+                      canUndo
+                        ? "text-gray-300 hover:text-white hover:bg-white/10"
+                        : "text-gray-600 cursor-not-allowed"
+                    )}
+                    title="Undo (Ctrl+Z)"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const restored = useHistoryStore.getState().redo();
+                      if (restored) updateLithoParams({ ...restored, _skipHistory: true });
+                    }}
+                    disabled={!canRedo}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all",
+                      canRedo
+                        ? "text-gray-300 hover:text-white hover:bg-white/10"
+                        : "text-gray-600 cursor-not-allowed"
+                    )}
+                    title="Redo (Ctrl+Shift+Z)"
+                  >
+                    <Redo2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* View toggles */}
+                <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
+                  <button 
+                    onClick={() => setSimulateLight(!simulateLight)}
+                    className={cn("p-2.5 rounded-xl transition-all", simulateLight ? "bg-white/10 text-yellow-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  >
+                    <Lightbulb className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setWireframe(!wireframe)}
+                    className={cn("p-2.5 rounded-xl transition-all", wireframe ? "bg-white/10 text-[#2563EB] shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  >
+                    <Layers className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setShowTexture(!showTexture)}
+                    className={cn("p-2.5 rounded-xl transition-all", showTexture ? "bg-white/10 text-emerald-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    title={t('viewport.colorMap')}
+                  >
+                    <Palette className="w-4 h-4" />
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -315,7 +530,7 @@ export default function App() {
           >
             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
             <span className="text-[9px] font-mono uppercase tracking-widest text-white/30">
-              {isControlsOpen ? 'Swipe Down' : 'Swipe Up'}
+              {isControlsOpen ? t('app.swipeDown') : t('app.swipeUp')}
             </span>
           </div>
 
@@ -329,10 +544,54 @@ export default function App() {
 
           {/* Header */}
           <div className="px-6 pb-4 md:pt-8 flex items-center justify-between border-b border-white/5">
-            <h2 className="text-lg font-medium tracking-tight">Parameters</h2>
-            <button onClick={resetLithoParams} className="text-[10px] font-mono uppercase tracking-wider text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10">
-              Reset
-            </button>
+            <h2 className="text-lg font-medium tracking-tight">{t('app.parameters')}</h2>
+            <div className="flex items-center gap-1.5">
+              {/* Save / Export / Import project */}
+              <button
+                onClick={saveToLocal}
+                title="Save project (localStorage)"
+                className={cn(
+                  'p-1.5 rounded-full transition-colors',
+                  isDirty
+                    ? 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20'
+                    : 'text-gray-600 bg-white/5 hover:bg-white/10 hover:text-gray-400'
+                )}
+              >
+                <Save size={13} />
+              </button>
+              <button
+                onClick={exportToFile}
+                title="Export project (.json)"
+                className="p-1.5 rounded-full text-gray-600 bg-white/5 hover:bg-white/10 hover:text-gray-400 transition-colors"
+              >
+                <Download size={13} />
+              </button>
+              <button
+                onClick={() => projectImportRef.current?.click()}
+                title="Import project (.json)"
+                className="p-1.5 rounded-full text-gray-600 bg-white/5 hover:bg-white/10 hover:text-gray-400 transition-colors"
+              >
+                <FolderOpen size={13} />
+              </button>
+              <input
+                ref={projectImportRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) await importFromFile(file);
+                  e.target.value = ''; // allow re-import of same file
+                }}
+              />
+
+              <div className="w-px h-4 bg-white/10 mx-0.5" />
+
+              <LanguageSelector />
+              <button onClick={resetLithoParams} className="text-[10px] font-mono uppercase tracking-wider text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10">
+                {t('app.reset')}
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
@@ -340,7 +599,7 @@ export default function App() {
               
               {/* Mode Switcher */}
               <div className="space-y-3">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-gray-500">Generation Mode</label>
+                <label className="text-[10px] font-mono uppercase tracking-widest text-gray-500">{t('mode.label')}</label>
                 <div className="flex bg-white/5 p-1 rounded-xl">
                   <button
                     onClick={() => setMode('lithophane')}
@@ -349,7 +608,7 @@ export default function App() {
                       mode === 'lithophane' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
                     )}
                   >
-                    Lithophane
+                    {t('mode.lithophane')}
                   </button>
                   <button
                     onClick={() => setMode('extrusion')}
@@ -358,7 +617,7 @@ export default function App() {
                       mode === 'extrusion' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
                     )}
                   >
-                    Logo Extrusion
+                    {t('mode.extrusion')}
                   </button>
                 </div>
               </div>
@@ -366,31 +625,44 @@ export default function App() {
               {/* Upload Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-mono uppercase tracking-widest text-gray-500">Source Asset</label>
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-gray-500">{t('upload.label')}</label>
                 </div>
                 
                 {imageSrc ? (
-                  <div className="relative group rounded-2xl overflow-hidden border border-white/10 bg-black/50 aspect-video">
-                    <img src={imageSrc} alt="Source" className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl transition-all flex items-center gap-2"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Replace Asset
-                      </button>
+                  <>
+                    <div className="relative group rounded-2xl overflow-hidden border border-white/10 bg-black/50 aspect-video">
+                      <img src={imageSrc} alt="Source" className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl transition-all flex items-center gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          {t('upload.replace')}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                    {/* Image Editor toolbar */}
+                    <ImageEditor />
+                  </>
                 ) : (
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full aspect-video border border-dashed border-white/20 hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-all rounded-2xl flex flex-col items-center justify-center gap-3 group bg-white/5"
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`w-full aspect-video border border-dashed transition-all rounded-2xl flex flex-col items-center justify-center gap-3 group ${
+                      isDragging 
+                        ? 'border-[#2563EB] bg-[#2563EB]/10 scale-[1.02] shadow-[0_0_30px_rgba(37,99,235,0.2)]' 
+                        : 'border-white/20 hover:border-[#2563EB] hover:bg-[#2563EB]/5 bg-white/5'
+                    }`}
                   >
-                    <div className="p-4 bg-white/5 rounded-full group-hover:scale-110 transition-transform">
-                      <Upload className="w-6 h-6 text-gray-400 group-hover:text-[#2563EB]" />
+                    <div className={`p-4 bg-white/5 rounded-full transition-transform ${isDragging ? 'scale-125' : 'group-hover:scale-110'}`}>
+                      <Upload className={`w-6 h-6 ${isDragging ? 'text-[#2563EB]' : 'text-gray-400 group-hover:text-[#2563EB]'}`} />
                     </div>
-                    <span className="text-xs font-medium text-gray-400 group-hover:text-white transition-colors">Tap to Upload Image</span>
+                    <span className="text-xs font-medium text-gray-400 group-hover:text-white transition-colors">
+                      {isDragging ? t('upload.dropHere') : t('upload.tapOrDrop')}
+                    </span>
                   </button>
                 )}
                 <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/png, image/jpeg" className="hidden" />
@@ -399,282 +671,34 @@ export default function App() {
               {/* Tabs */}
               <div className={cn("space-y-6 transition-opacity duration-500", !imageData && "opacity-20 pointer-events-none")}>
                 <div className="flex p-1 bg-white/5 rounded-xl">
-                  {['image', 'geometry', 'frame'].map((tab) => (
+                  {(['image', 'geometry', 'frame'] as const).map((tab) => (
                     <button 
                       key={tab}
-                      onClick={() => setActiveTab(tab as any)}
+                      onClick={() => setActiveTab(tab)}
                       className={cn(
                         "flex-1 py-2 text-[10px] font-mono uppercase tracking-wider rounded-lg transition-all", 
                         activeTab === tab ? "bg-white/10 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
                       )}
                     >
-                      {tab}
+                      {t(`tab.${tab}`)}
                     </button>
                   ))}
                 </div>
 
                 {/* Tab Content: Image */}
-                {activeTab === 'image' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                    {mode === 'extrusion' ? (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-end">
-                          <label className="text-xs text-gray-400">Extrusion Threshold</label>
-                          <span className="text-xs font-mono text-[#2563EB]">{threshold}</span>
-                        </div>
-                        <input type="range" min="0" max="255" step="1" value={threshold} onChange={(e) => updateLithoParams({ threshold: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                        <p className="text-[10px] text-gray-500 leading-relaxed">Pixels darker than this value will be extruded to max thickness.</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-end">
-                            <label className="text-xs text-gray-400">Contrast</label>
-                            <span className="text-xs font-mono text-[#2563EB]">{contrast.toFixed(1)}x</span>
-                          </div>
-                          <input type="range" min="0.0" max="3.0" step="0.1" value={contrast} onChange={(e) => updateLithoParams({ contrast: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-end">
-                            <label className="text-xs text-gray-400">Brightness</label>
-                            <span className="text-xs font-mono text-[#2563EB]">{brightness > 0 ? '+' : ''}{brightness.toFixed(2)}</span>
-                          </div>
-                          <input type="range" min="-1.0" max="1.0" step="0.05" value={brightness} onChange={(e) => updateLithoParams({ brightness: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-end">
-                            <label className="text-xs text-gray-400">Edge Enhancement</label>
-                            <span className="text-xs font-mono text-[#2563EB]">{sharpness.toFixed(1)}</span>
-                          </div>
-                          <input type="range" min="0.0" max="2.0" step="0.1" value={sharpness} onChange={(e) => updateLithoParams({ sharpness: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                          <p className="text-[10px] text-gray-500 leading-relaxed">Increases local contrast to preserve fine details during 3D printing.</p>
-                        </div>
-                      </>
-                    )}
-                    
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                      <label className="text-xs text-gray-300">Invert Depth Polarity</label>
-                      <button 
-                        onClick={() => updateLithoParams({ invert: !invert })}
-                        className={cn("w-12 h-6 rounded-full transition-colors relative", invert ? "bg-[#2563EB]" : "bg-white/10")}
-                      >
-                        <motion.div 
-                          layout
-                          className="absolute top-1 bottom-1 w-4 rounded-full bg-white shadow-sm"
-                          initial={false}
-                          animate={{ left: invert ? "calc(100% - 20px)" : "4px" }}
-                        />
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
+                {activeTab === 'image' && <ImageTab />}
 
                 {/* Tab Content: Geometry */}
-                {activeTab === 'geometry' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                    
-                    {/* Shape Selector */}
-                    <div className="space-y-3">
-                      <label className="text-xs text-gray-400">Shape</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'flat', label: 'Flat', icon: Square },
-                          { id: 'arc', label: 'Arc', icon: Cylinder },
-                          { id: 'cylinder', label: 'Cylinder', icon: Cylinder },
-                          { id: 'sphere', label: 'Sphere', icon: Circle },
-                          { id: 'heart', label: 'Heart', icon: Heart },
-                        ].map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => updateLithoParams({ shape: s.id as any })}
-                            className={cn(
-                              "flex items-center gap-2 p-3 rounded-xl border transition-all",
-                              shape === s.id 
-                                ? "border-[#2563EB] bg-[#2563EB]/10 text-white" 
-                                : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200"
-                            )}
-                          >
-                            <s.icon className="w-4 h-4" />
-                            <span className="text-xs font-medium">{s.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Max Dimension</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{physicalSize}mm</span>
-                      </div>
-                      <input type="range" min="50" max="300" step="10" value={physicalSize} onChange={(e) => updateLithoParams({ physicalSize: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Mesh Density (LOD)</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{resolution}px</span>
-                      </div>
-                      <input type="range" min="64" max="512" step="32" value={resolution} onChange={(e) => updateLithoParams({ resolution: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Base Thickness (Z-min)</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{baseThickness.toFixed(1)}mm</span>
-                      </div>
-                      <input type="range" min="0.2" max="2.0" step="0.1" value={baseThickness} onChange={(e) => updateLithoParams({ baseThickness: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Max Thickness (Z-max)</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{maxThickness.toFixed(1)}mm</span>
-                      </div>
-                      <input type="range" min="1.0" max="10.0" step="0.1" value={maxThickness} onChange={(e) => updateLithoParams({ maxThickness: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Laplacian Smoothing</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{smoothing} iter</span>
-                      </div>
-                      <input type="range" min="0" max="5" step="1" value={smoothing} onChange={(e) => updateLithoParams({ smoothing: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-                  </motion.div>
-                )}
+                {activeTab === 'geometry' && <GeometryTab />}
 
                 {/* Tab Content: Frame */}
-                {activeTab === 'frame' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Border Frame Width</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{borderWidth.toFixed(1)}mm</span>
-                      </div>
-                      <input type="range" min="0" max="10.0" step="0.5" value={borderWidth} onChange={(e) => updateLithoParams({ borderWidth: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400">Frame Thickness</label>
-                        <span className="text-xs font-mono text-[#2563EB]">{frameThickness.toFixed(1)}mm</span>
-                      </div>
-                      <input type="range" min="1.0" max="15.0" step="0.5" value={frameThickness} onChange={(e) => updateLithoParams({ frameThickness: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <label className="text-xs text-gray-400 flex items-center gap-1">
-                          <Square className="w-3 h-3" /> Base Stand Depth
-                        </label>
-                        <span className="text-xs font-mono text-[#2563EB]">{baseStand.toFixed(1)}mm</span>
-                      </div>
-                      <input type="range" min="0" max="20.0" step="1.0" value={baseStand} onChange={(e) => updateLithoParams({ baseStand: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                    </div>
-
-                    {(shape === 'flat' || shape === 'arc' || shape === 'heart') && (
-                      <div className="pt-4 border-t border-white/10">
-                        <button
-                          onClick={() => updateLithoParams({ hanger: !hanger })}
-                          className={cn(
-                            "w-full flex items-center justify-between p-3 rounded-xl border transition-all",
-                            hanger 
-                              ? "border-[#2563EB] bg-[#2563EB]/10 text-white" 
-                              : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200"
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Link className="w-4 h-4" />
-                            <span className="text-sm font-medium">Add Top Hanger</span>
-                          </div>
-                          <div className={cn(
-                            "w-8 h-4 rounded-full transition-colors relative",
-                            hanger ? "bg-[#2563EB]" : "bg-gray-600"
-                          )}>
-                            <div className={cn(
-                              "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform",
-                              hanger ? "left-4.5" : "left-0.5"
-                            )} />
-                          </div>
-                        </button>
-                        <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
-                          Adds a 5mm ring at the top center to easily hang the lithophane (e.g., as an ornament).
-                        </p>
-                      </div>
-                    )}
-
-                    {shape === 'arc' && (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-end">
-                          <label className="text-xs text-gray-400 flex items-center gap-1">
-                            <Cylinder className="w-3 h-3" /> Curve Angle
-                          </label>
-                          <span className="text-xs font-mono text-[#2563EB]">{curveAngle}°</span>
-                        </div>
-                        <input type="range" min="0" max="360" step="5" value={curveAngle} onChange={(e) => updateLithoParams({ curveAngle: Number(e.target.value) })} className="w-full accent-[#2563EB]" />
-                        {curveAngle >= 359.9 && (
-                          <p className="text-[10px] text-emerald-400 leading-relaxed bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
-                            Full cylinder mode active. Edges are welded for water-tight 3D printing.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
+                {activeTab === 'frame' && <FrameTab />}
               </div>
             </div>
           </div>
 
           {/* Export Section & Telemetry */}
-          <div className="p-4 md:p-6 bg-black/60 backdrop-blur-xl border-t border-white/5">
-            {meshData && (
-              <div className="flex justify-between items-center mb-4 px-2">
-                <div>
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">Triangles</p>
-                  <p className="text-xs font-mono text-gray-300">{meshData.stats.triangles.toLocaleString()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-0.5">Est. Size</p>
-                  <p className="text-xs font-mono text-[#2563EB]">~{((84 + meshData.stats.triangles * 50) / (1024 * 1024)).toFixed(1)} MB</p>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex gap-3">
-              {mode === 'lithophane' && (
-                <button 
-                  onClick={handleExportColorProfile}
-                  disabled={!meshData || isProcessing}
-                  className="flex-1 py-4 bg-white/5 hover:bg-white/10 disabled:bg-white/5 disabled:text-gray-600 text-gray-300 rounded-2xl font-semibold tracking-wide transition-all flex items-center justify-center gap-2 active:scale-[0.98] border border-white/10"
-                  title="Download Color Profile (Mirrored to stick on the back of the print)"
-                >
-                  <Palette className="w-5 h-5" />
-                  Color (Mirrored)
-                </button>
-              )}
-              
-              <div className="flex-[2] flex gap-2">
-                <button 
-                  onClick={handleExportSTL}
-                  disabled={!meshData || isProcessing}
-                  className="flex-1 py-4 bg-[#2563EB] hover:bg-blue-500 disabled:bg-white/5 disabled:text-gray-600 text-white rounded-2xl font-semibold tracking-wide transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(37,99,235,0.3)] disabled:shadow-none active:scale-[0.98]"
-                  title="Export as STL"
-                >
-                  STL
-                </button>
-                <button 
-                  onClick={handleExportOBJ}
-                  disabled={!meshData || isProcessing}
-                  className="flex-1 py-4 bg-[#2563EB] hover:bg-blue-500 disabled:bg-white/5 disabled:text-gray-600 text-white rounded-2xl font-semibold tracking-wide transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(37,99,235,0.3)] disabled:shadow-none active:scale-[0.98]"
-                  title="Export as OBJ (with UVs)"
-                >
-                  OBJ
-                </button>
-              </div>
-            </div>
-          </div>
+          <ExportBar />
         </div>
       </motion.div>
 
