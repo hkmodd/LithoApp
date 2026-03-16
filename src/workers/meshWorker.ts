@@ -17,6 +17,7 @@ async function loadWasm(): Promise<WasmLithoModule> {
 /**
  * Run the lithophane pipeline via WASM.
  */
+
 function runLithophaneWasm(
   wasm: WasmLithoModule,
   imageData: ImageData,
@@ -32,10 +33,18 @@ function runLithophaneWasm(
     params,
     postProgress
   );
+
+  // WASM should provide normals, but fall back to JS computation if missing
+  let normals: Float32Array = result.normals;
+  if (!normals) {
+    console.warn('[LithoApp] WASM result missing normals — computing in JS fallback');
+    normals = computeVertexNormals(result.positions, result.indices);
+  }
+
   return {
     positions: result.positions,
     indices: result.indices,
-    normals: new Float32Array(0), // computed by worker after engine returns
+    normals,
     uvs: result.uvs,
     stats: result.stats,
   };
@@ -62,14 +71,25 @@ self.onmessage = async function (e: MessageEvent<WorkerRequest>) {
       case 'extrusion':
         result = generateExtrusion(imageData, width, height, params, postProgress, wasm);
         break;
+      case 'encode-stl': {
+        // STL encoding runs entirely in WASM — zero main-thread blocking
+        const stlPos = e.data.stlPositions!;
+        const stlIdx = e.data.stlIndices!;
+        const stlBuffer = wasm.encode_stl(stlPos, stlIdx);
+        self.postMessage(
+          { type: 'stl-complete', id, stlBuffer },
+          { transfer: [stlBuffer.buffer as ArrayBuffer] }
+        );
+        return; // early exit — no mesh result to transfer
+      }
       case 'cookie-cutter':
         throw new Error('Cookie Cutter mode not yet implemented');
       default:
         throw new Error(`Unknown generation mode: ${mode}`);
     }
 
-    // Compute vertex normals off the main thread to avoid UI freeze
-    const normals = computeVertexNormals(result.positions, result.indices);
+    // Normals are now computed inside WASM — use them directly
+    const normals = result.normals;
 
     const transferables: Transferable[] = [
       result.positions.buffer as ArrayBuffer,

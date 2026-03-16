@@ -62,6 +62,10 @@ interface AppState {
 
   /** Internal flag: when true, the current param update should NOT be pushed to history */
   _skipHistory: boolean;
+
+  // Worker ref — shared so ExportBar can post encode-stl messages
+  meshWorker: Worker | null;
+  setMeshWorker: (w: Worker | null) => void;
 }
 
 const defaultLithoParams: LithoParams = {
@@ -122,4 +126,7 @@ export const useAppStore = create<AppState>((set) => ({
   resetLithoParams: () => set({ lithoParams: defaultLithoParams, _skipHistory: false }),
 
   _skipHistory: false,
+
+  meshWorker: null,
+  setMeshWorker: (w) => set({ meshWorker: w }),
 }));

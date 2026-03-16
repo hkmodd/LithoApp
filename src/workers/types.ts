@@ -60,16 +60,20 @@ export interface MeshEngineResult {
 
 export interface WorkerRequest {
   id: number; // generation counter for race-condition prevention
-  mode: AppMode;
+  mode: AppMode | 'encode-stl';
   imageData: ImageData;
   width: number;
   height: number;
   params: LithoParams;
+  // STL encoding fields (only used when mode === 'encode-stl')
+  stlPositions?: Float32Array;
+  stlIndices?: Uint32Array;
 }
 
 export type WorkerResponse =
   | { type: 'progress'; id: number; progress: number; message: string }
   | { type: 'complete'; id: number; positions: Float32Array; indices: Uint32Array; normals: Float32Array; uvs?: Float32Array; thickness?: Float32Array; stats: MeshStats }
+  | { type: 'stl-complete'; id: number; stlBuffer: Uint8Array }
   | { type: 'error'; id: number; message: string };
 
 export type ProgressCallback = (progress: number, message: string) => void;
@@ -89,7 +93,14 @@ export interface WasmLithoModule {
     positions: Float32Array;
     indices: Uint32Array;
     uvs: Float32Array;
+    normals: Float32Array;
     stats: MeshStats;
   };
+
+  /** Encode positions + indices into binary STL. Runs in WASM. */
+  encode_stl(
+    positions: Float32Array,
+    indices: Uint32Array,
+  ): Uint8Array;
 }
 

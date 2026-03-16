@@ -30,6 +30,7 @@ function createMockWasm(): WasmLithoModule {
         positions: new Float32Array(numVerts * 3),
         indices: new Uint32Array(6),
         uvs: new Float32Array(numVerts * 2),
+        normals: new Float32Array(numVerts * 3),
         stats: { vertices: numVerts, triangles: 2, width: gridW, height: gridH, bbox: { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 } },
       };
     },

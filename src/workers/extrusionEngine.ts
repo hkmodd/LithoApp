@@ -1,4 +1,5 @@
 import { MeshEngineResult, ProgressCallback, LithoParams, WasmLithoModule } from './types';
+import { computeVertexNormals } from './computeNormals';
 
 export function generateExtrusion(
   imageData: ImageData,
@@ -60,10 +61,12 @@ export function generateExtrusion(
     extrusionParams,
     postProgress
   );
+  // WASM should provide normals, but fall back to JS computation if missing
+  const normals: Float32Array = result.normals || computeVertexNormals(result.positions, result.indices);
   return {
     positions: result.positions,
     indices: result.indices,
-    normals: new Float32Array(0), // computed by worker after engine returns
+    normals,
     uvs: result.uvs,
     stats: result.stats,
   };

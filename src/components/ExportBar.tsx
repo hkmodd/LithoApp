@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Palette, Download, FileBox, Check, Box, Triangle } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import type { LithoParams } from '../store/useAppStore';
 import { encodeBinarySTL } from '../utils/stlEncoder';
 import { encodeOBJ } from '../utils/objEncoder';
 import { generateColorProfile } from '../utils/colorProfile';
@@ -71,12 +72,40 @@ export default function ExportBar() {
   const handleExportSTL = useCallback(async () => {
     if (!meshData) return;
     setStlState('downloading');
-    // Small delay for visual feedback
-    await new Promise(r => setTimeout(r, 150));
-    const blob = encodeBinarySTL(meshData.positions, meshData.indices);
-    triggerDownload(blob, 'lithophane.stl');
-    setStlState('done');
-    setTimeout(() => setStlState('idle'), 2000);
+
+    const worker = useAppStore.getState().meshWorker;
+    if (worker) {
+      // Use the WASM worker — zero main-thread blocking
+      const stlId = Date.now();
+      const handler = (e: MessageEvent) => {
+        if (e.data.type === 'stl-complete' && e.data.id === stlId) {
+          worker.removeEventListener('message', handler);
+          const blob = new Blob([e.data.stlBuffer], { type: 'application/octet-stream' });
+          triggerDownload(blob, 'lithophane.stl');
+          setStlState('done');
+          setTimeout(() => setStlState('idle'), 2000);
+        }
+      };
+      worker.addEventListener('message', handler);
+      worker.postMessage({
+        id: stlId,
+        mode: 'encode-stl',
+        stlPositions: meshData.positions,
+        stlIndices: meshData.indices,
+        // Required by WorkerRequest shape but unused for encode-stl
+        imageData: new ImageData(1, 1),
+        width: 1,
+        height: 1,
+        params: {} as LithoParams,
+      });
+    } else {
+      // Fallback to synchronous JS encoder (should rarely happen)
+      await new Promise(r => setTimeout(r, 150));
+      const blob = encodeBinarySTL(meshData.positions, meshData.indices);
+      triggerDownload(blob, 'lithophane.stl');
+      setStlState('done');
+      setTimeout(() => setStlState('idle'), 2000);
+    }
   }, [meshData, triggerDownload]);
 
   const handleExportOBJ = useCallback(async () => {

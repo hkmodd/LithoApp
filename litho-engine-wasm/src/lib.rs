@@ -3,6 +3,8 @@ mod heightmap;
 mod mesh;
 mod indices;
 mod hanger;
+mod normals;
+mod stl;
 
 use wasm_bindgen::prelude::*;
 use js_sys::Function;
@@ -96,6 +98,10 @@ pub fn generate_lithophane(
         idx.extend_from_slice(&hanger_idx);
     }
 
+    // Step 7b: Vertex normals (area-weighted, computed entirely in Rust)
+    let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(92), &JsValue::from("Computing vertex normals..."));
+    let normals = normals::compute_vertex_normals(&positions, &idx);
+
     // Step 8: Bounding box
     let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(95), &JsValue::from("Computing bounding box..."));
 
@@ -146,10 +152,12 @@ pub fn generate_lithophane(
     let idx_u32: Vec<u32> = idx;
     let idx_arr = js_sys::Uint32Array::from(idx_u32.as_slice());
     let uv_arr = js_sys::Float32Array::from(uvs.as_slice());
+    let nrm_arr = js_sys::Float32Array::from(normals.as_slice());
 
     js_sys::Reflect::set(&result, &"positions".into(), &pos_arr)?;
     js_sys::Reflect::set(&result, &"indices".into(), &idx_arr)?;
     js_sys::Reflect::set(&result, &"uvs".into(), &uv_arr)?;
+    js_sys::Reflect::set(&result, &"normals".into(), &nrm_arr)?;
 
     // Stats
     let stats = js_sys::Object::new();
@@ -170,4 +178,17 @@ pub fn generate_lithophane(
     js_sys::Reflect::set(&result, &"stats".into(), &stats)?;
 
     Ok(result.into())
+}
+
+/// Encode positions + indices as binary STL.
+///
+/// Runs entirely in WASM — no main-thread blocking.
+/// Called from the Web Worker via a dedicated message.
+#[wasm_bindgen]
+pub fn encode_stl(
+    positions: &[f32],
+    indices: &[u32],
+) -> js_sys::Uint8Array {
+    let buf = stl::encode_binary_stl(positions, indices);
+    js_sys::Uint8Array::from(buf.as_slice())
 }

@@ -88,6 +88,8 @@ export default function App() {
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('./workers/meshWorker.ts', import.meta.url), { type: 'module' });
+    // Share worker ref via store so ExportBar can post encode-stl messages
+    useAppStore.getState().setMeshWorker(workerRef.current);
     workerRef.current.onmessage = (e) => {
       const currentGenId = generationIdRef.current;
       // Discard stale responses (race-condition guard)
