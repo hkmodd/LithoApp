@@ -69,6 +69,7 @@ const tr: Record<TranslationKey, string> = {
   'nav.geometry': 'Geometri',
   'nav.export': 'Disa Aktar',
   'viewport.colorMap': 'Renk Haritasi',
+  'viewport.heatmap': 'Thickness Heatmap',
   'lang.label': 'Dil',
   // Slicer tips
   'slicer.title': 'Slicer Tips',

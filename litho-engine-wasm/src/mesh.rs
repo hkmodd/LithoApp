@@ -25,7 +25,7 @@ pub fn generate_vertices(
 
     // Effective curve angle
     let effective_angle_rad = match params.shape {
-        LithoShape::Cylinder => 2.0 * PI,
+        LithoShape::Cylinder | LithoShape::Dome | LithoShape::Lampshade | LithoShape::Vase => 2.0 * PI,
         LithoShape::Arc => params.curve_angle * PI / 180.0,
         _ => 0.0,
     };
@@ -64,6 +64,70 @@ pub fn generate_vertices(
                     bot_x = r_bot * phi.sin() * theta.sin();
                     bot_y = r_bot * phi.cos();
                     bot_z = r_bot * phi.sin() * theta.cos();
+                }
+                LithoShape::Dome => {
+                    // Hemisphere — upper half of sphere only
+                    let hole_angle = PI / 24.0;
+                    let phi_range = PI / 2.0 - hole_angle; // only 0..90°
+                    let phi = hole_angle + (y as f64 / (gh as f64 - 1.0)) * phi_range;
+                    let theta = (x as f64 / (gw as f64 - 1.0)) * 2.0 * PI;
+                    let r = gi.physical_width / (2.0 * PI);
+
+                    let r_top = r + h_top;
+                    let r_bot = r + h_bot;
+
+                    top_x = r_top * phi.sin() * theta.sin();
+                    top_y = r_top * phi.cos();
+                    top_z = r_top * phi.sin() * theta.cos();
+
+                    bot_x = r_bot * phi.sin() * theta.sin();
+                    bot_y = r_bot * phi.cos();
+                    bot_z = r_bot * phi.sin() * theta.cos();
+                }
+                LithoShape::Lampshade => {
+                    // Frustum / tapered cylinder — top radius = 0.5× bottom, 360° wrap
+                    let theta = (x as f64 / (gw as f64 - 1.0)) * 2.0 * PI;
+                    let t_y = y as f64 / (gh as f64 - 1.0); // 0 = top, 1 = bottom
+                    let r_bottom = gi.physical_width / (2.0 * PI);
+                    let r_top_radius = r_bottom * 0.5;
+                    let r = r_top_radius + t_y * (r_bottom - r_top_radius);
+
+                    top_x = (r + h_top) * theta.sin();
+                    top_y = (0.5 - t_y) * gi.physical_height;
+                    top_z = (r + h_top) * theta.cos();
+
+                    bot_x = (r + h_bot) * theta.sin();
+                    bot_y = (0.5 - t_y) * gi.physical_height;
+                    bot_z = (r + h_bot) * theta.cos();
+                }
+                LithoShape::Vase => {
+                    // Revolve with sigmoid profile — S-shaped radius variation, 360° wrap
+                    let theta = (x as f64 / (gw as f64 - 1.0)) * 2.0 * PI;
+                    let t_y = y as f64 / (gh as f64 - 1.0); // 0 = top (rim), 1 = bottom (base)
+                    let r_base = gi.physical_width / (2.0 * PI);
+
+                    // Sigmoid profile: wide at base, narrows in middle, flares slightly at rim
+                    let profile_base = 1.0;
+                    let profile_neck = 0.55;
+                    let profile_rim = 0.85;
+                    let profile = if t_y > 0.5 {
+                        // bottom half: base → neck
+                        let s = (t_y - 0.5) * 2.0;
+                        profile_neck + s * (profile_base - profile_neck)
+                    } else {
+                        // top half: neck → rim
+                        let s = t_y * 2.0;
+                        profile_rim + s * (profile_neck - profile_rim)
+                    };
+                    let r = r_base * profile;
+
+                    top_x = (r + h_top) * theta.sin();
+                    top_y = (0.5 - t_y) * gi.physical_height;
+                    top_z = (r + h_top) * theta.cos();
+
+                    bot_x = (r + h_bot) * theta.sin();
+                    bot_y = (0.5 - t_y) * gi.physical_height;
+                    bot_z = (r + h_bot) * theta.cos();
                 }
                 _ if effective_angle_rad > 0.01 => {
                     let r = gi.physical_width / effective_angle_rad;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2 } from 'lucide-react';
+import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer } from 'lucide-react';
 import LithoPreview from './LithoPreview';
 import ImageTab from './tabs/ImageTab';
 import GeometryTab from './tabs/GeometryTab';
@@ -21,6 +21,8 @@ interface MobileLayoutProps {
   setSimulateLight: (v: boolean) => void;
   showTexture: boolean;
   setShowTexture: (v: boolean) => void;
+  showHeatmap: boolean;
+  setShowHeatmap: (v: boolean) => void;
   isDragging: boolean;
   handleDragOver: (e: React.DragEvent) => void;
   handleDragLeave: (e: React.DragEvent) => void;
@@ -34,6 +36,7 @@ export default function MobileLayout({
   wireframe, setWireframe,
   simulateLight, setSimulateLight,
   showTexture, setShowTexture,
+  showHeatmap, setShowHeatmap,
   isDragging, handleDragOver, handleDragLeave, handleDrop,
   fileInputRef, handleImageUpload,
 }: MobileLayoutProps) {
@@ -197,6 +200,7 @@ export default function MobileLayout({
             simulateLight={simulateLight}
             textureUrl={imageSrc}
             showTexture={showTexture}
+            showHeatmap={showHeatmap}
             isMobile={true}
           />
         ) : (
@@ -269,6 +273,13 @@ export default function MobileLayout({
                 title={t('viewport.colorMap')}
               >
                 <Palette className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setShowHeatmap(!showHeatmap)}
+                className={cn("p-1.5 rounded-lg transition-all", showHeatmap ? "bg-white/10 text-orange-400" : "text-gray-400")}
+                title={t('viewport.heatmap')}
+              >
+                <Thermometer className="w-3.5 h-3.5" />
               </button>
               </div>
             </motion.div>

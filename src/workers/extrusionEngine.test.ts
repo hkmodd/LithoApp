@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { LithoParams } from './types';
+import type { LithoParams, WasmLithoModule } from './types';
 
 // jsdom doesn't provide ImageData — polyfill it
 if (typeof globalThis.ImageData === 'undefined') {
@@ -18,8 +18,27 @@ if (typeof globalThis.ImageData === 'undefined') {
 
 import { generateExtrusion } from './extrusionEngine';
 
+// Mock WASM module that mirrors the real generate_lithophane output shape
+function createMockWasm(): WasmLithoModule {
+  return {
+    generate_lithophane: (_data: Uint8ClampedArray, w: number, h: number, _params: unknown, progress: (p: number, m: string) => void) => {
+      progress(50, 'Generating 3D geometry...');
+      const gridW = Math.ceil(w * 0.5);
+      const gridH = Math.ceil(h * 0.5);
+      const numVerts = gridW * gridH * 2;
+      return {
+        positions: new Float32Array(numVerts * 3),
+        indices: new Uint32Array(6),
+        uvs: new Float32Array(numVerts * 2),
+        stats: { vertices: numVerts, triangles: 2, width: gridW, height: gridH, bbox: { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 } },
+      };
+    },
+  } as unknown as WasmLithoModule;
+}
+
 describe('Extrusion Engine', () => {
   const mockProgress = vi.fn();
+  const mockWasm = createMockWasm();
 
   const baseParams: LithoParams = {
     shape: 'flat',
@@ -57,7 +76,7 @@ describe('Extrusion Engine', () => {
   });
 
   it('generates a valid mesh from a white image', () => {
-    const result = generateExtrusion(makeImage(255, 255, 255), 4, 4, baseParams, mockProgress);
+    const result = generateExtrusion(makeImage(255, 255, 255), 4, 4, baseParams, mockProgress, mockWasm);
 
     expect(result.positions).toBeInstanceOf(Float32Array);
     expect(result.indices).toBeInstanceOf(Uint32Array);
@@ -66,7 +85,7 @@ describe('Extrusion Engine', () => {
   });
 
   it('generates a valid mesh from a black image', () => {
-    const result = generateExtrusion(makeImage(0, 0, 0), 4, 4, baseParams, mockProgress);
+    const result = generateExtrusion(makeImage(0, 0, 0), 4, 4, baseParams, mockProgress, mockWasm);
 
     expect(result.positions).toBeInstanceOf(Float32Array);
     expect(result.stats.triangles).toBeGreaterThan(0);
@@ -77,7 +96,7 @@ describe('Extrusion Engine', () => {
   it('forces invert=false and resets contrast/brightness/sharpness', () => {
     // Even if invert=true in params, extrusion handles it separately
     const params = { ...baseParams, invert: true, contrast: 2.0, brightness: 0.5, sharpness: 1.0 };
-    const result = generateExtrusion(makeImage(100, 100, 100), 4, 4, params, mockProgress);
+    const result = generateExtrusion(makeImage(100, 100, 100), 4, 4, params, mockProgress, mockWasm);
 
     // Should still succeed — the params override will not cause NaN
     expect(result.positions).toBeDefined();
@@ -85,7 +104,7 @@ describe('Extrusion Engine', () => {
   });
 
   it('reports progress during execution', () => {
-    generateExtrusion(makeImage(128, 128, 128), 4, 4, baseParams, mockProgress);
+    generateExtrusion(makeImage(128, 128, 128), 4, 4, baseParams, mockProgress, mockWasm);
 
     // At minimum: 'Thresholding...' + calls from inner lithophane engine
     expect(mockProgress).toHaveBeenCalled();
@@ -97,8 +116,8 @@ describe('Extrusion Engine', () => {
     const highThreshold = { ...baseParams, threshold: 200 };
     const lowThreshold = { ...baseParams, threshold: 50 };
 
-    const highResult = generateExtrusion(makeImage(128, 128, 128), 4, 4, highThreshold, mockProgress);
-    const lowResult = generateExtrusion(makeImage(128, 128, 128), 4, 4, lowThreshold, mockProgress);
+    const highResult = generateExtrusion(makeImage(128, 128, 128), 4, 4, highThreshold, mockProgress, mockWasm);
+    const lowResult = generateExtrusion(makeImage(128, 128, 128), 4, 4, lowThreshold, mockProgress, mockWasm);
 
     // Both should produce valid meshes
     expect(highResult.stats.vertices).toBeGreaterThan(0);
@@ -108,7 +127,7 @@ describe('Extrusion Engine', () => {
   it('works with non-square images', () => {
     const wideData = new Uint8ClampedArray(8 * 4 * 4).fill(200);
     const wide = new ImageData(wideData, 8, 4);
-    const result = generateExtrusion(wide, 8, 4, baseParams, mockProgress);
+    const result = generateExtrusion(wide, 8, 4, baseParams, mockProgress, mockWasm);
 
     expect(result.positions).toBeDefined();
     expect(result.stats.vertices).toBeGreaterThan(0);

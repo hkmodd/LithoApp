@@ -86,6 +86,7 @@ const en = {
   'nav.geometry': 'Geometry',
   'nav.export': 'Export',
   'viewport.colorMap': 'Color Map',
+  'viewport.heatmap': 'Thickness Heatmap',
 
   // Language selector
   'lang.label': 'Language',

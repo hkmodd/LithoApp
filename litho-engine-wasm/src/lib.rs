@@ -71,7 +71,7 @@ pub fn generate_lithophane(
     // Step 6: Indices
     let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(80), &JsValue::from("Tessellating surfaces..."));
     let effective_angle_rad = match params.shape {
-        LithoShape::Cylinder => 2.0 * PI,
+        LithoShape::Cylinder | LithoShape::Dome | LithoShape::Lampshade | LithoShape::Vase => 2.0 * PI,
         LithoShape::Arc => params.curve_angle * PI / 180.0,
         _ => 0.0,
     };

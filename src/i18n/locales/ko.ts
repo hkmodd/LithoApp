@@ -78,6 +78,7 @@ const ko: Record<TranslationKey, string> = {
   'nav.geometry': '?????',
   'nav.export': '????',
   'viewport.colorMap': '?? ?',
+  'viewport.heatmap': 'Thickness Heatmap',
   'lang.label': '언어',
   // Slicer tips
   'slicer.title': 'Slicer Tips',

@@ -78,6 +78,7 @@ const es: Record<TranslationKey, string> = {
   'nav.geometry': 'Geometr�a',
   'nav.export': 'Exportar',
   'viewport.colorMap': 'Mapa de Color',
+  'viewport.heatmap': 'Thickness Heatmap',
   'lang.label': 'Idioma',
   // Slicer tips
   'slicer.title': 'Slicer Tips',

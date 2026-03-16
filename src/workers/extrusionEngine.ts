@@ -1,5 +1,4 @@
 import { MeshEngineResult, ProgressCallback, LithoParams, WasmLithoModule } from './types';
-import { generateLithophane } from './lithophaneEngine';
 
 export function generateExtrusion(
   imageData: ImageData,
@@ -7,7 +6,7 @@ export function generateExtrusion(
   height: number,
   params: LithoParams,
   postProgress: ProgressCallback,
-  wasmModule?: WasmLithoModule | null
+  wasmModule: WasmLithoModule
 ): MeshEngineResult {
   postProgress(5, 'Thresholding image for extrusion...');
 
@@ -36,7 +35,6 @@ export function generateExtrusion(
     if (invert) isForeground = !isForeground;
 
     // Set to pure black (raised) or pure white (base)
-    // The lithophane engine maps black to maxThickness and white to baseThickness (if not inverted in litho params)
     const val = isForeground ? 0 : 255;
     
     newImageData.data[i] = val;
@@ -45,9 +43,7 @@ export function generateExtrusion(
     newImageData.data[i + 3] = 255; // Alpha opaque
   }
 
-  // We reuse the lithophane engine but with the thresholded image!
-  // We force invert to false because we already handled it above.
-  // We also force high smoothing to slightly bevel the edges for better 3D printing.
+  // We reuse the lithophane WASM engine but with the thresholded image
   const extrusionParams = {
     ...params,
     invert: false, 
@@ -57,24 +53,19 @@ export function generateExtrusion(
     sharpness: 0.0
   };
 
-  // Use WASM if available, otherwise fall back to TS
-  if (wasmModule) {
-    const result = wasmModule.generate_lithophane(
-      newImageData.data,
-      width,
-      height,
-      extrusionParams,
-      postProgress
-    );
-    return {
-      positions: result.positions,
-      indices: result.indices,
-      normals: new Float32Array(0), // computed by worker after engine returns
-      uvs: result.uvs,
-      stats: result.stats,
-    };
-  }
-
-  return generateLithophane(newImageData, width, height, extrusionParams, postProgress);
+  const result = wasmModule.generate_lithophane(
+    newImageData.data,
+    width,
+    height,
+    extrusionParams,
+    postProgress
+  );
+  return {
+    positions: result.positions,
+    indices: result.indices,
+    normals: new Float32Array(0), // computed by worker after engine returns
+    uvs: result.uvs,
+    stats: result.stats,
+  };
 }
 

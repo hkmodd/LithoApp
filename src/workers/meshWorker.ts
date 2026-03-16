@@ -1,28 +1,21 @@
 import { WorkerRequest, MeshEngineResult, WasmLithoModule, LithoParams, ProgressCallback } from './types';
-import { generateLithophane } from './lithophaneEngine';
 import { generateExtrusion } from './extrusionEngine';
 import { computeVertexNormals } from './computeNormals';
 
-// --- WASM engine (loaded lazily, with TS fallback) ---
+// --- WASM engine (loaded lazily, required) ---
 let wasmModule: WasmLithoModule | null = null;
-let wasmInitFailed = false;
 
-async function loadWasm(): Promise<WasmLithoModule | null> {
-  if (wasmModule || wasmInitFailed) return wasmModule;
-  try {
-    const wasm = await import('litho-engine-wasm/litho_engine_wasm.js');
-    await wasm.default();
-    wasmModule = wasm as unknown as WasmLithoModule;
-    console.log('[LithoApp] WASM engine loaded successfully');
-  } catch (err) {
-    wasmInitFailed = true;
-    console.warn('[LithoApp] WASM engine unavailable, using TypeScript fallback:', err);
-  }
+async function loadWasm(): Promise<WasmLithoModule> {
+  if (wasmModule) return wasmModule;
+  const wasm = await import('litho-engine-wasm/litho_engine_wasm.js');
+  await wasm.default();
+  wasmModule = wasm as unknown as WasmLithoModule;
+  console.log('[LithoApp] WASM engine loaded successfully');
   return wasmModule;
 }
 
 /**
- * Run the lithophane pipeline via WASM, falling back to TS on failure.
+ * Run the lithophane pipeline via WASM.
  */
 function runLithophaneWasm(
   wasm: WasmLithoModule,
@@ -48,7 +41,7 @@ function runLithophaneWasm(
   };
 }
 
-// Main WebWorker entry point — use self.onmessage directly
+// Main WebWorker entry point
 self.onmessage = async function (e: MessageEvent<WorkerRequest>) {
   const { id, mode, imageData, width, height, params } = e.data;
 
@@ -59,22 +52,17 @@ self.onmessage = async function (e: MessageEvent<WorkerRequest>) {
   try {
     let result: MeshEngineResult;
 
-    // Try to load WASM (fast no-op after first call)
+    // Load WASM engine (fast no-op after first call)
     const wasm = await loadWasm();
 
     switch (mode) {
       case 'lithophane':
-        if (wasm) {
-          result = runLithophaneWasm(wasm, imageData, width, height, params, postProgress);
-        } else {
-          result = generateLithophane(imageData, width, height, params, postProgress);
-        }
+        result = runLithophaneWasm(wasm, imageData, width, height, params, postProgress);
         break;
       case 'extrusion':
         result = generateExtrusion(imageData, width, height, params, postProgress, wasm);
         break;
       case 'cookie-cutter':
-        // Placeholder for future Cookie Cutter generation
         throw new Error('Cookie Cutter mode not yet implemented');
       default:
         throw new Error(`Unknown generation mode: ${mode}`);

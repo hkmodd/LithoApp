@@ -78,6 +78,7 @@ const zh: Record<TranslationKey, string> = {
   'nav.geometry': '??',
   'nav.export': '??',
   'viewport.colorMap': '????',
+  'viewport.heatmap': 'Thickness Heatmap',
   'lang.label': '语言',
   // Slicer tips
   'slicer.title': 'Slicer Tips',

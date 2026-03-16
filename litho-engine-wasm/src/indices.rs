@@ -55,6 +55,9 @@ pub fn generate_indices(
 
     let is_full_cyl = params.shape == LithoShape::Cylinder
         || params.shape == LithoShape::Sphere
+        || params.shape == LithoShape::Dome
+        || params.shape == LithoShape::Lampshade
+        || params.shape == LithoShape::Vase
         || effective_angle_rad >= 359.9 * PI / 180.0;
 
     // Use the heart mask only if shape is heart; otherwise pass empty slice

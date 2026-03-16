@@ -3,6 +3,7 @@ import { OrbitControls, Stage, Grid } from '@react-three/drei';
 import { useMemo, useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import TranslucentMaterial from './TranslucentMaterial';
+import HeatmapMaterial from './HeatmapMaterial';
 
 interface LithoPreviewProps {
   positions: Float32Array | null;
@@ -14,6 +15,7 @@ interface LithoPreviewProps {
   simulateLight: boolean;
   textureUrl?: string | null;
   showTexture?: boolean;
+  showHeatmap?: boolean;
   isMobile?: boolean;
   minThickness?: number;
   maxThickness?: number;
@@ -23,6 +25,7 @@ export default function LithoPreview({
   positions, indices, normals, uvs, thickness,
   wireframe, simulateLight,
   textureUrl, showTexture,
+  showHeatmap = false,
   isMobile = false,
   minThickness = 0.4,
   maxThickness = 3.0,
@@ -65,6 +68,7 @@ export default function LithoPreview({
     return () => { textureRef.current?.dispose(); textureRef.current = null; };
   }, [textureUrl]);
 
+  const useHeatmap = showHeatmap && thickness;
   const useTexture = showTexture && texture && uvs;
   const useTranslucent = simulateLight && thickness;
 
@@ -91,7 +95,14 @@ export default function LithoPreview({
         shadows
       >
         <mesh geometry={geometry} castShadow receiveShadow>
-          {useTexture ? (
+          {useHeatmap ? (
+            /* Thickness heatmap: blue→cyan→green→yellow→red */
+            <HeatmapMaterial
+              minThickness={minThickness}
+              maxThickness={maxThickness}
+              wireframe={wireframe}
+            />
+          ) : useTexture ? (
             /* Color-mapped mode: project source image onto mesh */
             <meshStandardMaterial
               map={texture}

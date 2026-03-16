@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
-import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen } from 'lucide-react';
+import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen, Thermometer } from 'lucide-react';
 import LithoPreview from './components/LithoPreview';
 import ViewportOverlay from './components/ViewportOverlay';
 import MobileLayout from './components/MobileLayout';
@@ -50,6 +50,7 @@ export default function App() {
   const [wireframe, setWireframe] = useState(false);
   const [simulateLight, setSimulateLight] = useState(true);
   const [showTexture, setShowTexture] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [booted, setBooted] = useState(false);
   
   const workerRef = useRef<Worker | null>(null);
@@ -332,6 +333,8 @@ export default function App() {
           setSimulateLight={setSimulateLight}
           showTexture={showTexture}
           setShowTexture={setShowTexture}
+          showHeatmap={showHeatmap}
+          setShowHeatmap={setShowHeatmap}
           isDragging={isDragging}
           handleDragOver={handleDragOver}
           handleDragLeave={handleDragLeave}
@@ -395,6 +398,7 @@ export default function App() {
             simulateLight={simulateLight}
             textureUrl={imageSrc}
             showTexture={showTexture}
+            showHeatmap={showHeatmap}
             minThickness={lithoParams.baseThickness}
             maxThickness={lithoParams.maxThickness}
           />
@@ -510,6 +514,13 @@ export default function App() {
                     title={t('viewport.colorMap')}
                   >
                     <Palette className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setShowHeatmap(!showHeatmap)}
+                    className={cn("p-2.5 rounded-xl transition-all", showHeatmap ? "bg-white/10 text-orange-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    title={t('viewport.heatmap')}
+                  >
+                    <Thermometer className="w-4 h-4" />
                   </button>
                 </div>
               </motion.div>

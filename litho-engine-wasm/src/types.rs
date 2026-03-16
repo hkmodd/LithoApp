@@ -9,6 +9,9 @@ pub enum LithoShape {
     Cylinder,
     Sphere,
     Heart,
+    Dome,
+    Lampshade,
+    Vase,
 }
 
 /// Mirrors the TypeScript `LithoParams` interface.
