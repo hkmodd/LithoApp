@@ -79,6 +79,29 @@ const it: Record<TranslationKey, string> = {
   'nav.export': 'Esporta',
   'viewport.colorMap': 'Mappa Colore',
   'lang.label': 'Lingua',
+
+  // Slicer tips
+  'slicer.title': 'Consigli Slicer',
+  'slicer.layerHeight': 'Altezza Layer',
+  'slicer.infill': 'Riempimento',
+  'slicer.orientation': 'Orientamento',
+  'slicer.supports': 'Supporti',
+
+  // New shapes
+  'geo.lampshade': 'Paralume',
+  'geo.vase': 'Vaso',
+  'geo.dome': 'Cupola',
+
+  // Preset gallery
+  'preset.label': 'Preset',
+  'preset.default': 'Predefinito',
+  'preset.highDetail': 'Alta Definiz.',
+  'preset.vintage': 'Vintage',
+  'preset.softGlow': 'Sfumato',
+  'preset.dramatic': 'Drammatico',
+  'preset.nightLight': 'Lampada Not.',
+  'preset.inverted': 'Invertito',
+  'preset.bold': 'Forte',
 };
 
 export default it;

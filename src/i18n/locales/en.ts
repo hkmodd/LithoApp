@@ -89,6 +89,29 @@ const en = {
 
   // Language selector
   'lang.label': 'Language',
+
+  // Slicer tips
+  'slicer.title': 'Slicer Tips',
+  'slicer.layerHeight': 'Layer Height',
+  'slicer.infill': 'Infill',
+  'slicer.orientation': 'Orientation',
+  'slicer.supports': 'Supports',
+
+  // New shapes
+  'geo.lampshade': 'Lampshade',
+  'geo.vase': 'Vase',
+  'geo.dome': 'Dome',
+
+  // Preset gallery
+  'preset.label': 'Presets',
+  'preset.default': 'Default',
+  'preset.highDetail': 'High Detail',
+  'preset.vintage': 'Vintage',
+  'preset.softGlow': 'Soft Glow',
+  'preset.dramatic': 'Dramatic',
+  'preset.nightLight': 'Night Light',
+  'preset.inverted': 'Inverted',
+  'preset.bold': 'Bold',
 } as const;
 
 export type TranslationKey = keyof typeof en;

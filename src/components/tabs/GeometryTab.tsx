@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Square, Cylinder, Circle, Heart } from 'lucide-react';
+import { Square, Cylinder, Circle, Heart, Triangle, FlaskConical, Hexagon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../store/useAppStore';
 import type { LithoShape } from '../../workers/types';
@@ -25,6 +25,9 @@ export default function GeometryTab() {
             { id: 'cylinder', labelKey: 'geo.cylinder' as TranslationKey, icon: Cylinder },
             { id: 'sphere', labelKey: 'geo.sphere' as TranslationKey, icon: Circle },
             { id: 'heart', labelKey: 'geo.heart' as TranslationKey, icon: Heart },
+            { id: 'lampshade', labelKey: 'geo.lampshade' as TranslationKey, icon: Triangle },
+            { id: 'vase', labelKey: 'geo.vase' as TranslationKey, icon: FlaskConical },
+            { id: 'dome', labelKey: 'geo.dome' as TranslationKey, icon: Circle },
           ]).map((s) => (
             <button
               key={s.id}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera } from 'lucide-react';
+import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2 } from 'lucide-react';
 import LithoPreview from './LithoPreview';
 import ImageTab from './tabs/ImageTab';
 import GeometryTab from './tabs/GeometryTab';
@@ -11,6 +11,7 @@ import MobileNavBar, { type MobileTab } from './MobileNavBar';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
+import { useHistoryStore } from '../store/useHistoryStore';
 import { useTranslation } from '../i18n';
 
 interface MobileLayoutProps {
@@ -36,7 +37,9 @@ export default function MobileLayout({
   isDragging, handleDragOver, handleDragLeave, handleDrop,
   fileInputRef, handleImageUpload,
 }: MobileLayoutProps) {
-  const { imageSrc, imageData, meshData, isProcessing, progress, mode, setMode, resetLithoParams } = useAppStore();
+  const { imageSrc, imageData, meshData, isProcessing, progress, mode, setMode, resetLithoParams, updateLithoParams } = useAppStore();
+  const canUndo = useHistoryStore((s) => s.canUndo);
+  const canRedo = useHistoryStore((s) => s.canRedo);
   const { t } = useTranslation();
   const [mobileTab, setMobileTab] = useState<MobileTab>('image');
 
@@ -227,8 +230,27 @@ export default function MobileLayout({
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="absolute top-2 right-2 z-10 bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl"
+              className="absolute top-2 right-2 z-10 flex gap-1"
             >
+              {/* Undo / Redo */}
+              <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
+                <button
+                  onClick={() => { const r = useHistoryStore.getState().undo(); if (r) updateLithoParams({ ...r, _skipHistory: true }); }}
+                  disabled={!canUndo}
+                  className={cn("p-1.5 rounded-lg transition-all", canUndo ? "text-gray-300 active:bg-white/10" : "text-gray-600")}
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => { const r = useHistoryStore.getState().redo(); if (r) updateLithoParams({ ...r, _skipHistory: true }); }}
+                  disabled={!canRedo}
+                  className={cn("p-1.5 rounded-lg transition-all", canRedo ? "text-gray-300 active:bg-white/10" : "text-gray-600")}
+                >
+                  <Redo2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {/* View toggles */}
+              <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
               <button
                 onClick={() => setSimulateLight(!simulateLight)}
                 className={cn("p-1.5 rounded-lg transition-all", simulateLight ? "bg-white/10 text-yellow-400" : "text-gray-400")}
@@ -248,6 +270,7 @@ export default function MobileLayout({
               >
                 <Palette className="w-3.5 h-3.5" />
               </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

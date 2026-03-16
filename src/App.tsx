@@ -150,6 +150,26 @@ export default function App() {
     };
   }, []);
 
+  // ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y ─────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (!isCtrl) return;
+
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const restored = useHistoryStore.getState().undo();
+        if (restored) updateLithoParams({ ...restored, _skipHistory: true });
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault();
+        const restored = useHistoryStore.getState().redo();
+        if (restored) updateLithoParams({ ...restored, _skipHistory: true });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [updateLithoParams]);
+
   // ── Project restore from localStorage on mount ──────────────────
   useEffect(() => {
     useProjectStore.getState().loadFromLocal();

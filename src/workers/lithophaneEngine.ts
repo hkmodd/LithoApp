@@ -257,6 +257,69 @@ export function generateLithophane(
         botX = r_bot * Math.sin(phi) * Math.sin(theta);
         botY = r_bot * Math.cos(phi);
         botZ = r_bot * Math.sin(phi) * Math.cos(theta);
+      } else if (shape === 'dome') {
+        // Hemisphere — upper half of sphere only
+        const holeAngle = Math.PI / 24; // smaller hole for dome
+        const phiRange = Math.PI / 2 - holeAngle; // only 0..90°
+        const phi = holeAngle + (y / (gridH - 1)) * phiRange;
+        const theta = (x / (gridW - 1)) * 2 * Math.PI;
+
+        const R = physicalWidth / (2 * Math.PI);
+        const r_top = R + h_top;
+        const r_bot = R + h_bot;
+
+        topX = r_top * Math.sin(phi) * Math.sin(theta);
+        topY = r_top * Math.cos(phi);
+        topZ = r_top * Math.sin(phi) * Math.cos(theta);
+
+        botX = r_bot * Math.sin(phi) * Math.sin(theta);
+        botY = r_bot * Math.cos(phi);
+        botZ = r_bot * Math.sin(phi) * Math.cos(theta);
+      } else if (shape === 'lampshade') {
+        // Frustum / tapered cylinder — top radius = 0.5× bottom, 360° wrap
+        const theta = (x / (gridW - 1)) * 2 * Math.PI;
+        const t_y = y / (gridH - 1); // 0 = top, 1 = bottom
+        const R_bottom = physicalWidth / (2 * Math.PI);
+        const R_top = R_bottom * 0.5;
+        const R = R_top + t_y * (R_bottom - R_top); // linearly interpolated radius
+
+        topX = (R + h_top) * Math.sin(theta);
+        topY = (0.5 - t_y) * physicalHeight;
+        topZ = (R + h_top) * Math.cos(theta);
+
+        botX = (R + h_bot) * Math.sin(theta);
+        botY = (0.5 - t_y) * physicalHeight;
+        botZ = (R + h_bot) * Math.cos(theta);
+      } else if (shape === 'vase') {
+        // Revolve with sigmoid profile — S-shaped radius variation, 360° wrap
+        const theta = (x / (gridW - 1)) * 2 * Math.PI;
+        const t_y = y / (gridH - 1); // 0 = top (rim), 1 = bottom (base)
+        const R_base = physicalWidth / (2 * Math.PI);
+
+        // Sigmoid profile: wide at base, narrows in middle, flares slightly at rim
+        // profile(t) goes from ~0.85 (rim) → 0.55 (middle) → 1.0 (base)
+        const profileBase = 1.0;
+        const profileNeck = 0.55;
+        const profileRim = 0.85;
+        let profile: number;
+        if (t_y > 0.5) {
+          // bottom half: base → neck
+          const s = (t_y - 0.5) * 2; // 0..1
+          profile = profileNeck + s * (profileBase - profileNeck);
+        } else {
+          // top half: neck → rim
+          const s = t_y * 2; // 0..1 (0=rim, 1=neck)
+          profile = profileRim + s * (profileNeck - profileRim);
+        }
+        const R = R_base * profile;
+
+        topX = (R + h_top) * Math.sin(theta);
+        topY = (0.5 - t_y) * physicalHeight;
+        topZ = (R + h_top) * Math.cos(theta);
+
+        botX = (R + h_bot) * Math.sin(theta);
+        botY = (0.5 - t_y) * physicalHeight;
+        botZ = (R + h_bot) * Math.cos(theta);
       } else if (effectiveCurveAngleRad > 0.01) {
         // Curved projection (Arc or Cylinder)
         const R = physicalWidth / effectiveCurveAngleRad;

@@ -3,6 +3,7 @@ import { cn } from '../../lib/utils';
 import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
 import TouchSlider from '../TouchSlider';
+import PresetGallery from './PresetGallery';
 
 export default function ImageTab() {
   const { lithoParams, updateLithoParams, mode } = useAppStore();
@@ -22,6 +23,8 @@ export default function ImageTab() {
         </div>
       ) : (
         <>
+          {/* Preset Gallery — one-click artistic presets */}
+          <PresetGallery />
           <div className="space-y-3">
             <div className="flex justify-between items-end">
               <label className="text-xs text-gray-400">{t('image.contrast')}</label>

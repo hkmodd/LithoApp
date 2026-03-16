@@ -1,14 +1,29 @@
-import { motion } from 'framer-motion';
-import { Square, Cylinder, Link } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Square, Cylinder, Link, ChevronDown, Printer } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
+import type { LithoShape } from '../../workers/types';
 import TouchSlider from '../TouchSlider';
+
+const SLICER_TIPS: Record<string, { layerHeight: string; infill: string; orientation: string; supports: string }> = {
+  flat:      { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Vertical (standing up)', supports: 'None' },
+  arc:       { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Concave side up', supports: 'None' },
+  cylinder:  { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Vertical (axis up)', supports: 'None' },
+  sphere:    { layerHeight: '0.08–0.12 mm', infill: '100%', orientation: 'Pole up', supports: 'Light — bottom pole' },
+  heart:     { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Vertical (standing up)', supports: 'None' },
+  lampshade: { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Wide end down', supports: 'None (self-supporting taper)' },
+  vase:      { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Base down', supports: 'None (smooth profile)' },
+  dome:      { layerHeight: '0.08–0.12 mm', infill: '100%', orientation: 'Open end down', supports: 'Light — apex area' },
+};
 
 export default function FrameTab() {
   const { lithoParams, updateLithoParams } = useAppStore();
   const { shape, borderWidth, frameThickness, baseStand, hanger, curveAngle } = lithoParams;
   const { t } = useTranslation();
+  const [tipsOpen, setTipsOpen] = useState(false);
+  const tips = SLICER_TIPS[shape] || SLICER_TIPS.flat;
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -85,6 +100,44 @@ export default function FrameTab() {
           )}
         </div>
       )}
+
+      {/* ── Slicer Advisor ─────────────────────────────── */}
+      <div className="pt-4 border-t border-white/10">
+        <button
+          onClick={() => setTipsOpen(!tipsOpen)}
+          className="w-full flex items-center justify-between text-xs text-gray-300 hover:text-white transition-colors"
+        >
+          <span className="flex items-center gap-1.5 font-medium">
+            <Printer className="w-3.5 h-3.5 text-amber-400" />
+            {t('slicer.title')}
+          </span>
+          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", tipsOpen && "rotate-180")} />
+        </button>
+        <AnimatePresence>
+          {tipsOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 space-y-2 bg-amber-500/5 border border-amber-500/10 rounded-xl p-3">
+                {([
+                  ['slicer.layerHeight', tips.layerHeight],
+                  ['slicer.infill', tips.infill],
+                  ['slicer.orientation', tips.orientation],
+                  ['slicer.supports', tips.supports],
+                ] as const).map(([key, val]) => (
+                  <div key={key} className="flex justify-between items-start gap-4">
+                    <span className="text-[10px] text-amber-300/80 shrink-0">{t(key)}</span>
+                    <span className="text-[10px] text-gray-300 text-right">{val}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 }

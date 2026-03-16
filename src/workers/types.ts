@@ -1,7 +1,7 @@
 // Core engine interface for different generation modes
 
 export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter';
-export type LithoShape = 'flat' | 'arc' | 'cylinder' | 'sphere' | 'heart';
+export type LithoShape = 'flat' | 'arc' | 'cylinder' | 'sphere' | 'heart' | 'lampshade' | 'vase' | 'dome';
 
 /** Non-destructive image edits applied before engine processing */
 export interface ImageEdits {

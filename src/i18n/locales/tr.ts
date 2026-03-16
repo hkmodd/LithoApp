@@ -64,12 +64,33 @@ const tr: Record<TranslationKey, string> = {
   'export.colorTooltip': 'Renk profili indir (ayna versiyonu)',
   'export.stlTooltip': 'STL Olarak DÄ±ÅŸa Aktar',
   'export.objTooltip': 'OBJ Olarak DÄ±ÅŸa Aktar (UV ile)',
-      'nav.preview': 'Önizleme',
-  'nav.image': 'Görüntü',
+      'nav.preview': 'ï¿½nizleme',
+  'nav.image': 'Gï¿½rï¿½ntï¿½',
   'nav.geometry': 'Geometri',
   'nav.export': 'Disa Aktar',
   'viewport.colorMap': 'Renk Haritasi',
   'lang.label': 'Dil',
+  // Slicer tips
+  'slicer.title': 'Slicer Tips',
+  'slicer.layerHeight': 'Layer Height',
+  'slicer.infill': 'Infill',
+  'slicer.orientation': 'Orientation',
+  'slicer.supports': 'Supports',
+
+  // New shapes
+  'geo.lampshade': 'Lampshade',
+  'geo.vase': 'Vase',
+  'geo.dome': 'Dome',
+  // Preset gallery
+  'preset.label': 'Presets',
+  'preset.default': 'Default',
+  'preset.highDetail': 'High Detail',
+  'preset.vintage': 'Vintage',
+  'preset.softGlow': 'Soft Glow',
+  'preset.dramatic': 'Dramatic',
+  'preset.nightLight': 'Night Light',
+  'preset.inverted': 'Inverted',
+  'preset.bold': 'Bold',
 };
 
 export default tr;

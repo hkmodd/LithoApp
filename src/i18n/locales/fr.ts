@@ -73,12 +73,33 @@ const fr: Record<TranslationKey, string> = {
   'export.stlTooltip': 'Exporter en STL',
   'export.objTooltip': 'Exporter en OBJ (avec UVs)',
 
-      'nav.preview': 'Aperçu',
+      'nav.preview': 'Aperï¿½u',
   'nav.image': 'Image',
-  'nav.geometry': 'Géométrie',
+  'nav.geometry': 'Gï¿½omï¿½trie',
   'nav.export': 'Exporter',
   'viewport.colorMap': 'Carte de Couleur',
   'lang.label': 'Langue',
+  // Slicer tips
+  'slicer.title': 'Slicer Tips',
+  'slicer.layerHeight': 'Layer Height',
+  'slicer.infill': 'Infill',
+  'slicer.orientation': 'Orientation',
+  'slicer.supports': 'Supports',
+
+  // New shapes
+  'geo.lampshade': 'Lampshade',
+  'geo.vase': 'Vase',
+  'geo.dome': 'Dome',
+  // Preset gallery
+  'preset.label': 'Presets',
+  'preset.default': 'Default',
+  'preset.highDetail': 'High Detail',
+  'preset.vintage': 'Vintage',
+  'preset.softGlow': 'Soft Glow',
+  'preset.dramatic': 'Dramatic',
+  'preset.nightLight': 'Night Light',
+  'preset.inverted': 'Inverted',
+  'preset.bold': 'Bold',
 };
 
 export default fr;
