@@ -8,6 +8,7 @@ import { encodeBinarySTL } from '../utils/stlEncoder';
 import { encodeOBJ } from '../utils/objEncoder';
 import { generateColorProfile } from '../utils/colorProfile';
 import { useTranslation } from '../i18n';
+import { heavy } from '../lib/haptics';
 
 /* ─── animated counting hook ───────────────────────────────── */
 function useCountUp(target: number, duration = 600) {
@@ -82,6 +83,7 @@ export default function ExportBar() {
   const handleExportSTL = useCallback(async () => {
     if (!meshData) return;
     setStlState('downloading');
+    heavy();
 
     const worker = useAppStore.getState().meshWorker;
     if (worker) {
@@ -121,6 +123,7 @@ export default function ExportBar() {
   const handleExportOBJ = useCallback(async () => {
     if (!meshData) return;
     setObjState('downloading');
+    heavy();
     await new Promise(r => setTimeout(r, 150));
     const blob = encodeOBJ(meshData.positions, meshData.indices, meshData.uvs);
     triggerDownload(blob, 'lithophane.obj');
@@ -131,6 +134,7 @@ export default function ExportBar() {
   const handleExportColorProfile = useCallback(async () => {
     if (!imageSrc) return;
     setColorState('downloading');
+    heavy();
     try {
       const dataUrl = await generateColorProfile(imageSrc, lithoParams);
       const a = document.createElement('a');
@@ -152,6 +156,7 @@ export default function ExportBar() {
     if (!worker || !cms) return;
 
     setZipState('downloading');
+    heavy();
 
     // Build stlPack: extract positions & indices from each channel
     const stlPack: Record<CMYWChannel, { positions: Float32Array; indices: Uint32Array }> =

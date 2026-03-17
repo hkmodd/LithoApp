@@ -7,6 +7,7 @@
  * on top of the image preview. Both share state via useCropStore.
  */
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RotateCcw, RotateCw, FlipHorizontal, FlipVertical, Crop, Sun, Contrast, type LucideIcon } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
@@ -15,6 +16,7 @@ import { useTranslation } from '../i18n';
 import { hasEdits } from '../lib/imageProcessor';
 import TouchSlider from './TouchSlider';
 import { cn } from '../lib/utils';
+import { tap } from '../lib/haptics';
 
 export default function ImageEditor() {
   const { imageEdits, updateImageEdits, resetImageEdits, originalImage } = useAppStore();
@@ -25,6 +27,10 @@ export default function ImageEditor() {
 
   // Don't render if no image is loaded
   if (!originalImage) return null;
+
+  // Live display values — fluid during drag
+  const [liveGamma, setLiveGamma] = useState(imageEdits.gamma);
+  const [liveExposure, setLiveExposure] = useState(imageEdits.exposure);
 
   const handleRotateLeft = () => {
     const current = imageEdits.rotation;
@@ -71,7 +77,7 @@ export default function ImageEditor() {
     icon: LucideIcon; label: string; onClick: () => void; active?: boolean;
   }) => (
     <button
-      onClick={onClick}
+      onClick={() => { tap(); onClick(); }}
       title={label}
       className={cn(
         "p-2 rounded-lg transition-colors duration-75 text-gray-400 hover:text-white hover:bg-white/10",
@@ -152,7 +158,7 @@ export default function ImageEditor() {
             <Contrast className="w-3 h-3" />
             {t('editor.gamma')}
           </label>
-          <span className="text-xs font-mono text-[#2563EB]">{imageEdits.gamma.toFixed(2)}</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveGamma.toFixed(2)}</span>
         </div>
         <TouchSlider
           min={0.2}
@@ -160,6 +166,7 @@ export default function ImageEditor() {
           step={0.05}
           value={imageEdits.gamma}
           onChange={(v) => updateImageEdits({ gamma: v })}
+          onLiveValue={setLiveGamma}
         />
       </div>
 
@@ -171,7 +178,7 @@ export default function ImageEditor() {
             {t('editor.exposure')}
           </label>
           <span className="text-xs font-mono text-[#2563EB]">
-            {imageEdits.exposure > 0 ? '+' : ''}{imageEdits.exposure.toFixed(2)}
+            {liveExposure > 0 ? '+' : ''}{liveExposure.toFixed(2)}
           </span>
         </div>
         <TouchSlider
@@ -180,6 +187,7 @@ export default function ImageEditor() {
           step={0.05}
           value={imageEdits.exposure}
           onChange={(v) => updateImageEdits({ exposure: v })}
+          onLiveValue={setLiveExposure}
         />
       </div>
     </motion.div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Square, Cylinder, Circle, Heart, Triangle, FlaskConical, Hexagon } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -6,11 +7,19 @@ import type { LithoShape } from '../../workers/types';
 import { useTranslation } from '../../i18n';
 import type { TranslationKey } from '../../i18n';
 import TouchSlider from '../TouchSlider';
+import { tap } from '../../lib/haptics';
 
 export default function GeometryTab() {
   const { lithoParams, updateLithoParams } = useAppStore();
   const { shape, physicalSize, resolution, baseThickness, maxThickness, smoothing } = lithoParams;
   const { t } = useTranslation();
+
+  // Live display values — fluid during drag
+  const [livePhysicalSize, setLivePhysicalSize] = useState(physicalSize);
+  const [liveResolution, setLiveResolution] = useState(resolution);
+  const [liveBaseThickness, setLiveBaseThickness] = useState(baseThickness);
+  const [liveMaxThickness, setLiveMaxThickness] = useState(maxThickness);
+  const [liveSmoothing, setLiveSmoothing] = useState(smoothing);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -31,7 +40,7 @@ export default function GeometryTab() {
           ]).map((s) => (
             <button
               key={s.id}
-              onClick={() => updateLithoParams({ shape: s.id as LithoShape })}
+              onClick={() => { tap(); updateLithoParams({ shape: s.id as LithoShape }); }}
               className={cn(
                 "flex items-center gap-2 p-3 rounded-xl border transition-all",
                 shape === s.id 
@@ -49,41 +58,41 @@ export default function GeometryTab() {
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('geo.maxDimension')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{physicalSize}mm</span>
+          <span className="text-xs font-mono text-[#2563EB]">{livePhysicalSize}mm</span>
         </div>
-        <TouchSlider min={50} max={300} step={10} value={physicalSize} onChange={(v) => updateLithoParams({ physicalSize: v })} />
+        <TouchSlider min={50} max={300} step={10} value={physicalSize} onChange={(v) => updateLithoParams({ physicalSize: v })} onLiveValue={setLivePhysicalSize} />
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('geo.meshDensity')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{resolution}px</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveResolution}px</span>
         </div>
-        <TouchSlider min={64} max={512} step={32} value={resolution} onChange={(v) => updateLithoParams({ resolution: v })} />
+        <TouchSlider min={64} max={512} step={32} value={resolution} onChange={(v) => updateLithoParams({ resolution: v })} onLiveValue={setLiveResolution} />
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('geo.baseThickness')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{baseThickness.toFixed(1)}mm</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveBaseThickness.toFixed(1)}mm</span>
         </div>
-        <TouchSlider min={0.2} max={2.0} step={0.1} value={baseThickness} onChange={(v) => updateLithoParams({ baseThickness: v })} />
+        <TouchSlider min={0.2} max={2.0} step={0.1} value={baseThickness} onChange={(v) => updateLithoParams({ baseThickness: v })} onLiveValue={setLiveBaseThickness} />
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('geo.maxThickness')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{maxThickness.toFixed(1)}mm</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveMaxThickness.toFixed(1)}mm</span>
         </div>
-        <TouchSlider min={1.0} max={10.0} step={0.1} value={maxThickness} onChange={(v) => updateLithoParams({ maxThickness: v })} />
+        <TouchSlider min={1.0} max={10.0} step={0.1} value={maxThickness} onChange={(v) => updateLithoParams({ maxThickness: v })} onLiveValue={setLiveMaxThickness} />
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('geo.smoothing')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{smoothing} {t('geo.smoothingUnit')}</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveSmoothing} {t('geo.smoothingUnit')}</span>
         </div>
-        <TouchSlider min={0} max={5} step={1} value={smoothing} onChange={(v) => updateLithoParams({ smoothing: v })} />
+        <TouchSlider min={0} max={5} step={1} value={smoothing} onChange={(v) => updateLithoParams({ smoothing: v })} onLiveValue={setLiveSmoothing} />
       </div>
     </motion.div>
   );

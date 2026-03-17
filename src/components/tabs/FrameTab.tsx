@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useTranslation } from '../../i18n';
 import type { LithoShape } from '../../workers/types';
 import TouchSlider from '../TouchSlider';
+import { tap } from '../../lib/haptics';
 
 const SLICER_TIPS: Record<string, { layerHeight: string; infill: string; orientation: string; supports: string }> = {
   flat:      { layerHeight: '0.12–0.16 mm', infill: '100%', orientation: 'Vertical (standing up)', supports: 'None' },
@@ -25,22 +26,28 @@ export default function FrameTab() {
   const [tipsOpen, setTipsOpen] = useState(false);
   const tips = SLICER_TIPS[shape] || SLICER_TIPS.flat;
 
+  // Live display values — fluid during drag
+  const [liveBorderWidth, setLiveBorderWidth] = useState(borderWidth);
+  const [liveFrameThickness, setLiveFrameThickness] = useState(frameThickness);
+  const [liveBaseStand, setLiveBaseStand] = useState(baseStand);
+  const [liveCurveAngle, setLiveCurveAngle] = useState(curveAngle);
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('frame.borderWidth')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{borderWidth.toFixed(1)}mm</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveBorderWidth.toFixed(1)}mm</span>
         </div>
-        <TouchSlider min={0} max={10.0} step={0.5} value={borderWidth} onChange={(v) => updateLithoParams({ borderWidth: v })} />
+        <TouchSlider min={0} max={10.0} step={0.5} value={borderWidth} onChange={(v) => updateLithoParams({ borderWidth: v })} onLiveValue={setLiveBorderWidth} />
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-end">
           <label className="text-xs text-gray-400">{t('frame.frameThickness')}</label>
-          <span className="text-xs font-mono text-[#2563EB]">{frameThickness.toFixed(1)}mm</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveFrameThickness.toFixed(1)}mm</span>
         </div>
-        <TouchSlider min={1.0} max={15.0} step={0.5} value={frameThickness} onChange={(v) => updateLithoParams({ frameThickness: v })} />
+        <TouchSlider min={1.0} max={15.0} step={0.5} value={frameThickness} onChange={(v) => updateLithoParams({ frameThickness: v })} onLiveValue={setLiveFrameThickness} />
       </div>
 
       <div className="space-y-3">
@@ -48,15 +55,15 @@ export default function FrameTab() {
           <label className="text-xs text-gray-400 flex items-center gap-1">
             <Square className="w-3 h-3" /> {t('frame.baseStand')}
           </label>
-          <span className="text-xs font-mono text-[#2563EB]">{baseStand.toFixed(1)}mm</span>
+          <span className="text-xs font-mono text-[#2563EB]">{liveBaseStand.toFixed(1)}mm</span>
         </div>
-        <TouchSlider min={0} max={20.0} step={1.0} value={baseStand} onChange={(v) => updateLithoParams({ baseStand: v })} />
+        <TouchSlider min={0} max={20.0} step={1.0} value={baseStand} onChange={(v) => updateLithoParams({ baseStand: v })} onLiveValue={setLiveBaseStand} />
       </div>
 
       {(shape === 'flat' || shape === 'arc' || shape === 'heart') && (
         <div className="pt-4 border-t border-white/10">
           <button
-            onClick={() => updateLithoParams({ hanger: !hanger })}
+            onClick={() => { tap(); updateLithoParams({ hanger: !hanger }); }}
             className={cn(
               "w-full flex items-center justify-between p-3 rounded-xl border transition-all",
               hanger 
@@ -90,10 +97,10 @@ export default function FrameTab() {
             <label className="text-xs text-gray-400 flex items-center gap-1">
               <Cylinder className="w-3 h-3" /> {t('frame.curveAngle')}
             </label>
-            <span className="text-xs font-mono text-[#2563EB]">{curveAngle}°</span>
+            <span className="text-xs font-mono text-[#2563EB]">{liveCurveAngle}°</span>
           </div>
-          <TouchSlider min={0} max={360} step={5} value={curveAngle} onChange={(v) => updateLithoParams({ curveAngle: v })} />
-          {curveAngle >= 359.9 && (
+          <TouchSlider min={0} max={360} step={5} value={curveAngle} onChange={(v) => updateLithoParams({ curveAngle: v })} onLiveValue={setLiveCurveAngle} />
+          {liveCurveAngle >= 359.9 && (
             <p className="text-[10px] text-emerald-400 leading-relaxed bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
               {t('frame.fullCylinder')}
             </p>
@@ -104,7 +111,7 @@ export default function FrameTab() {
       {/* ── Slicer Advisor ─────────────────────────────── */}
       <div className="pt-4 border-t border-white/10">
         <button
-          onClick={() => setTipsOpen(!tipsOpen)}
+          onClick={() => { tap(); setTipsOpen(!tipsOpen); }}
           className="w-full flex items-center justify-between text-xs text-gray-300 hover:text-white transition-colors"
         >
           <span className="flex items-center gap-1.5 font-medium">

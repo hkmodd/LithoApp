@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { tick } from '../lib/haptics';
 
 interface TouchSliderProps {
   min: number;
@@ -6,6 +7,8 @@ interface TouchSliderProps {
   step: number;
   value: number;
   onChange: (value: number) => void;
+  /** Fires on every drag position — un-throttled, display-only */
+  onLiveValue?: (value: number) => void;
   className?: string;
   formatValue?: (v: number) => string;
 }
@@ -38,7 +41,7 @@ function snapValue(raw: number, step: number, min: number, max: number): number 
 }
 
 export default function TouchSlider({
-  min, max, step, value, onChange, className = '',
+  min, max, step, value, onChange, onLiveValue, className = '',
 }: TouchSliderProps) {
   const [localValue, setLocalValue] = useState(value);
   const isDragging = useRef(false);
@@ -78,9 +81,12 @@ export default function TouchSlider({
   }, [min, max, step, value]);
 
   const setAndTrack = useCallback((v: number) => {
+    // Haptic tick when crossing a step boundary
+    if (latestRef.current !== v) tick();
     latestRef.current = v;
     setLocalValue(v);
-  }, []);
+    onLiveValue?.(v);
+  }, [onLiveValue]);
 
   // Throttled live update — fires onChange at most every LIVE_THROTTLE_MS
   // during drag, giving the 3D preview live feedback. The 250ms debounce

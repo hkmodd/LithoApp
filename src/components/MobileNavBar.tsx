@@ -3,6 +3,7 @@ import { Eye, ImageIcon, Hexagon, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../i18n';
 import { motion } from 'motion/react';
+import { tap } from '../lib/haptics';
 
 export type MobileTab = 'view' | 'image' | 'mesh' | 'export';
 
@@ -35,7 +36,7 @@ export default memo(function MobileNavBar({ activeTab, onTabChange, hasMesh }: M
         return (
           <button
             key={id}
-            onClick={() => !isDisabled && onTabChange(id)}
+            onClick={() => { if (!isDisabled) { tap(); onTabChange(id); } }}
             className={cn(
               "flex-1 flex flex-col items-center gap-1 py-3 transition-colors duration-75 relative",
               isActive ? "text-[#2563EB]" : "text-gray-500",

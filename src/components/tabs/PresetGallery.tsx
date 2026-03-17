@@ -10,6 +10,7 @@ import { useTranslation } from '../../i18n';
 import type { LithoParams } from '../../workers/types';
 import type { ImageEdits } from '../../workers/types';
 import { cn } from '../../lib/utils';
+import { tap } from '../../lib/haptics';
 
 interface Preset {
   id: string;
@@ -97,6 +98,7 @@ export default function PresetGallery() {
   const { t } = useTranslation();
 
   const applyPreset = (preset: Preset) => {
+    tap();
     updateLithoParams(preset.litho);
     updateImageEdits(preset.edits);
   };
