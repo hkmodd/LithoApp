@@ -1,10 +1,13 @@
 // LithoApp Service Worker — Cache-first for static assets, network-first for HTML
 // IMPORTANT: Bump version whenever WASM or major assets change to purge stale cache
-const CACHE_NAME = 'lithoapp-v2';
+const CACHE_NAME = 'lithoapp-v3';
+
+// Use the SW scope as base path — works on both '/' (dev) and '/LithoApp/' (GH Pages)
+const BASE = self.registration ? self.registration.scope : '/';
 const STATIC_ASSETS = [
-  '/',
-  '/icon-192.png',
-  '/icon-512.png',
+  BASE,
+  `${BASE}icon-192.png`,
+  `${BASE}icon-512.png`,
 ];
 
 self.addEventListener('install', (event) => {
@@ -30,7 +33,7 @@ self.addEventListener('fetch', (event) => {
   // Network-first for navigation (HTML)
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('/'))
+      fetch(request).catch(() => caches.match(BASE))
     );
     return;
   }

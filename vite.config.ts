@@ -6,6 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/LithoApp/',
     plugins: [react(), tailwindcss(), wasm()],
     resolve: {
       alias: {

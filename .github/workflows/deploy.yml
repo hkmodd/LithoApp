@@ -1,0 +1,81 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- Rust + WASM ---
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            litho-engine-wasm/target
+          key: rust-wasm-${{ hashFiles('litho-engine-wasm/Cargo.lock') }}
+          restore-keys: rust-wasm-
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Build WASM
+        run: wasm-pack build --release --target web
+        working-directory: litho-engine-wasm
+
+      - name: Optimize WASM with wasm-opt
+        run: |
+          npm install -g binaryen
+          wasm-opt -O4 --enable-bulk-memory --enable-nontrapping-float-to-int \
+            litho-engine-wasm/pkg/litho_engine_wasm_bg.wasm \
+            -o litho-engine-wasm/pkg/litho_engine_wasm_bg.wasm
+
+      # --- Node + Vite ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite
+        run: npm run build
+
+      # --- Deploy ---
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
