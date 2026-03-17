@@ -1,35 +1,32 @@
 /**
- * InstallBanner — PWA install prompt.
+ * InstallBanner — PWA install banner.
  *
- * - Chromium: shows custom banner when `beforeinstallprompt` fires
- *   (Chrome's native mini-infobar also shows independently)
- * - iOS Safari: shows "Share → Add to Home Screen" instructions
- *
- * Dismissible with 7-day localStorage expiry.
+ * Shows on mobile (always) and desktop (when beforeinstallprompt fires).
+ * - Chromium with native prompt → "Install" triggers Chrome dialog.
+ * - iOS → shows "Share → Add to Home Screen" steps.
+ * - Android without prompt → shows "Menu ⋮ → Add to Home Screen" steps.
  */
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, X, Zap, WifiOff, Smartphone, Share, PlusSquare } from 'lucide-react';
+import { Download, X, Zap, WifiOff, Smartphone, Share, PlusSquare, MoreVertical } from 'lucide-react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import { useTranslation } from '../i18n';
 
 export default function InstallBanner() {
-  const { canInstall, showIOSInstructions, platform, install, dismiss } = useInstallPrompt();
+  const { showBanner, platform, hasNativePrompt, install, dismiss } = useInstallPrompt();
   const { t } = useTranslation();
   const [showSteps, setShowSteps] = useState(false);
 
-  // Nothing to show
-  if (!canInstall && !showIOSInstructions) return null;
+  if (!showBanner) return null;
 
-  const handleInstall = async () => {
-    if (platform === 'chromium') {
+  const handleCTA = async () => {
+    if (hasNativePrompt) {
+      // Chromium: trigger the native install dialog
       const accepted = await install();
-      if (accepted) return; // installed
-      // If user dismissed Chrome's prompt, also dismiss our banner
-      dismiss();
+      if (!accepted) dismiss();
     } else {
-      // iOS: show manual steps
+      // iOS / Android: show manual steps
       setShowSteps(true);
     }
   };
@@ -44,7 +41,7 @@ export default function InstallBanner() {
         className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
       >
         <div className="bg-gradient-to-br from-[#0f172a]/95 to-[#1e1b4b]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-4 shadow-2xl shadow-black/40">
-          {/* Close button */}
+          {/* Close */}
           <button
             onClick={dismiss}
             className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 transition-colors p-1"
@@ -53,15 +50,24 @@ export default function InstallBanner() {
             <X className="w-4 h-4" />
           </button>
 
-          {/* iOS instruction overlay */}
-          {showSteps && platform === 'ios' ? (
+          {/* Manual instruction overlay */}
+          {showSteps ? (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-white">
                 {t('install.howto')}
               </h3>
               <div className="space-y-2">
-                <Step icon={<Share className="w-4 h-4 text-blue-400" />} text={t('install.ios.step1')} />
-                <Step icon={<PlusSquare className="w-4 h-4 text-blue-400" />} text={t('install.ios.step2')} />
+                {platform === 'ios' ? (
+                  <>
+                    <Step icon={<Share className="w-4 h-4 text-blue-400" />} text={t('install.ios.step1')} />
+                    <Step icon={<PlusSquare className="w-4 h-4 text-blue-400" />} text={t('install.ios.step2')} />
+                  </>
+                ) : (
+                  <>
+                    <Step icon={<MoreVertical className="w-4 h-4 text-blue-400" />} text={t('install.android.step1')} />
+                    <Step icon={<PlusSquare className="w-4 h-4 text-blue-400" />} text={t('install.android.step2')} />
+                  </>
+                )}
               </div>
               <button
                 onClick={dismiss}
@@ -72,7 +78,7 @@ export default function InstallBanner() {
             </div>
           ) : (
             <>
-              {/* Header */}
+              {/* Header row */}
               <div className="flex items-start gap-3 mb-3">
                 <div className="bg-[#2563EB] p-2 rounded-xl shadow-lg shadow-[#2563EB]/30 flex-shrink-0">
                   <Download className="w-5 h-5 text-white" />
@@ -103,9 +109,9 @@ export default function InstallBanner() {
                 </div>
               </div>
 
-              {/* CTA */}
+              {/* CTA button */}
               <button
-                onClick={handleInstall}
+                onClick={handleCTA}
                 className="w-full py-2.5 bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-sm font-medium rounded-xl shadow-md shadow-[#2563EB]/25 transition-colors duration-75 flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <Download className="w-4 h-4" />
@@ -119,7 +125,6 @@ export default function InstallBanner() {
   );
 }
 
-/** Small instruction step row */
 function Step({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div className="flex items-center gap-2.5 bg-white/5 rounded-lg px-3 py-2">

@@ -1,13 +1,13 @@
 /**
  * useInstallPrompt — PWA install prompt hook.
  *
- * Strategy:
- * - Chromium browsers: captures `beforeinstallprompt` for a custom banner.
- *   Does NOT call e.preventDefault() so Chrome's native mini-infobar still shows.
- * - iOS Safari: detects Safari on iOS and shows manual "Add to Home" instructions.
- * - Already standalone: hides everything.
+ * Shows the install banner on ALL mobile browsers (not standalone).
+ * - If `beforeinstallprompt` fired → native install prompt available.
+ * - If iOS Safari → "Share → Add to Home" instructions.
+ * - If Android/other mobile without prompt → "Menu → Add to Home" instructions.
+ * - Desktop: only shows when `beforeinstallprompt` fires.
  *
- * Dismiss is stored in localStorage with 7-day expiry.
+ * Dismiss stored in localStorage with 7-day expiry.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -18,10 +18,12 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-export type InstallPlatform = 'chromium' | 'ios' | null;
+export type InstallPlatform = 'chromium' | 'ios' | 'android' | null;
 
 const DISMISS_KEY = 'lithoapp-install-dismissed';
 const DISMISS_DAYS = 7;
+
+/* ---- helpers ---- */
 
 function isDismissed(): boolean {
   try {
@@ -48,61 +50,63 @@ function isStandalone(): boolean {
   if (typeof window === 'undefined') return false;
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
-    // iOS Safari standalone
     ('standalone' in navigator && (navigator as any).standalone === true)
   );
 }
 
-function detectIOSSafari(): boolean {
+function isMobile(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isIOSDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
-  // iPhone/iPad/iPod  — Safari only (not Chrome on iOS, which supports PWA differently)
-  const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
+  return /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  // Exclude Chrome/Firefox/etc on iOS — they use webkit but have their own UA strings
-  const isSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
-  return isSafari;
 }
+
+/* ---- hook ---- */
 
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [dismissed, setDismissedState] = useState(isDismissed);
-  const [isIOSSafari, setIsIOSSafari] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [ios, setIOS] = useState(false);
   const promptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
+    // Already installed as PWA — hide everything
     if (isStandalone()) {
       setInstalled(true);
       return;
     }
 
-    // Detect iOS Safari for manual instructions
-    setIsIOSSafari(detectIOSSafari());
+    setMobile(isMobile());
+    setIOS(isIOSDevice());
 
-    // Capture beforeinstallprompt (Chromium only).
-    // IMPORTANT: we do NOT call e.preventDefault() — this allows Chrome's
-    // native mini-infobar to appear on mobile, which is the standard UX.
-    // We still capture the event to offer our own custom banner as well.
-    const handler = (e: Event) => {
+    // Capture beforeinstallprompt (Chromium). Do NOT call preventDefault()
+    // so Chrome's native mini-infobar + 3-dot menu install still works.
+    const onPrompt = (e: Event) => {
       const evt = e as BeforeInstallPromptEvent;
       promptRef.current = evt;
       setDeferredPrompt(evt);
     };
 
-    const appInstalledHandler = () => {
+    const onInstalled = () => {
       setInstalled(true);
       setDeferredPrompt(null);
       promptRef.current = null;
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
-    window.addEventListener('appinstalled', appInstalledHandler);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-      window.removeEventListener('appinstalled', appInstalledHandler);
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
@@ -126,22 +130,32 @@ export function useInstallPrompt() {
     saveDismiss();
   }, []);
 
-  // Determine what to show
-  const canShowChromium = !!deferredPrompt && !installed && !dismissed;
-  const canShowIOS = isIOSSafari && !installed && !dismissed;
+  // Should we show the banner?
+  const hasPrompt = !!deferredPrompt;
+
+  // On mobile: ALWAYS show (unless installed/dismissed)
+  // On desktop: only when beforeinstallprompt fired
+  const showBanner = !installed && !dismissed && (mobile || hasPrompt);
+
+  // Determine platform for UI
+  let platform: InstallPlatform = null;
+  if (showBanner) {
+    if (hasPrompt) {
+      platform = 'chromium'; // native prompt available
+    } else if (ios) {
+      platform = 'ios';      // iOS manual instructions
+    } else if (mobile) {
+      platform = 'android';  // Android manual instructions
+    }
+  }
 
   return {
-    /** Show native (Chromium) install banner */
-    canInstall: canShowChromium,
-    /** Show iOS Safari manual instructions */
-    showIOSInstructions: canShowIOS,
-    /** Platform for conditional UI */
-    platform: (canShowChromium ? 'chromium' : canShowIOS ? 'ios' : null) as InstallPlatform,
-    /** Whether the app is already installed */
+    showBanner,
+    platform,
+    /** Can we trigger a native install prompt? */
+    hasNativePrompt: hasPrompt,
     isInstalled: installed,
-    /** Trigger the native install prompt (Chromium only) */
     install,
-    /** Dismiss the banner for 7 days */
     dismiss,
   };
 }
