@@ -137,6 +137,21 @@ const ja: Record<TranslationKey, string> = {
   'install.android.step1': 'メニュー（⋮）をタップ',
   'install.android.step2': '「ホーム画面に追加」をタップ',
   'install.gotit': '了解',
+
+  // Project Gallery
+  'gallery.title': 'プロジェクト履歴',
+  'gallery.empty': '保存されたプロジェクトはありません',
+  'gallery.emptyHint': '新しい画像を読み込むとプロジェクトは自動保存されます',
+  'gallery.clearAll': 'すべて削除',
+  'gallery.clearConfirm': 'すべて削除しますか？',
+  'gallery.restoreConfirm': 'このプロジェクトを読み込みますか？未保存の変更は失われます。',
+  'gallery.confirm': '読み込む',
+  'gallery.cancel': 'キャンセル',
+  'gallery.cacheUsage': 'キャッシュ: {used} / {limit}',
+  'gallery.delete': '削除',
+  'gallery.rename': 'ダブルクリックで名前変更',
+  'gallery.autoSaved': '自動保存',
+  'gallery.recentProjects': '最近のプロジェクト',
 };
 
 export default ja;

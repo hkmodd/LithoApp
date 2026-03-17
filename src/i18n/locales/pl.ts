@@ -128,6 +128,21 @@ const pl: Record<TranslationKey, string> = {
   'install.android.step1': 'Dotknij Menu (⋮)',
   'install.android.step2': 'Dotknij "Dodaj do ekranu głównego"',
   'install.gotit': 'Rozumiem',
+
+  // Project Gallery
+  'gallery.title': 'Historia Projektów',
+  'gallery.empty': 'Brak zapisanych projektów',
+  'gallery.emptyHint': 'Projekty są automatycznie zapisywane przy ładowaniu nowego obrazu',
+  'gallery.clearAll': 'Usuń Wszystko',
+  'gallery.clearConfirm': 'Usunąć wszystko?',
+  'gallery.restoreConfirm': 'Wczytać ten projekt? Niezapisane zmiany zostaną utracone.',
+  'gallery.confirm': 'Wczytaj',
+  'gallery.cancel': 'Anuluj',
+  'gallery.cacheUsage': 'Pamięć: {used} / {limit}',
+  'gallery.delete': 'Usuń',
+  'gallery.rename': 'Kliknij dwukrotnie aby zmienić nazwę',
+  'gallery.autoSaved': 'Auto-zapis',
+  'gallery.recentProjects': 'Ostatnie Projekty',
 };
 
 export default pl;

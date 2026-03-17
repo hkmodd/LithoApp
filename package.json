@@ -19,6 +19,7 @@
     "@react-three/fiber": "^9.5.0",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",
+    "idb-keyval": "^6.2.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.36.0",
     "react": "^19.0.0",

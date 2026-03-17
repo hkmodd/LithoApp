@@ -137,6 +137,21 @@ const ru: Record<TranslationKey, string> = {
   'install.android.step1': 'Нажмите Меню (⋮)',
   'install.android.step2': 'Нажмите "Добавить на главный экран"',
   'install.gotit': 'Понятно',
+
+  // Project Gallery
+  'gallery.title': 'История Проектов',
+  'gallery.empty': 'Нет сохранённых проектов',
+  'gallery.emptyHint': 'Проекты автоматически сохраняются при загрузке нового изображения',
+  'gallery.clearAll': 'Очистить всё',
+  'gallery.clearConfirm': 'Удалить всё?',
+  'gallery.restoreConfirm': 'Загрузить этот проект? Несохранённые изменения будут потеряны.',
+  'gallery.confirm': 'Загрузить',
+  'gallery.cancel': 'Отмена',
+  'gallery.cacheUsage': 'Кэш: {used} / {limit}',
+  'gallery.delete': 'Удалить',
+  'gallery.rename': 'Двойной клик для переименования',
+  'gallery.autoSaved': 'Автосохранение',
+  'gallery.recentProjects': 'Последние Проекты',
 };
 
 export default ru;

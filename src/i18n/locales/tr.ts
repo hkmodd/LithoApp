@@ -128,6 +128,21 @@ const tr: Record<TranslationKey, string> = {
   'install.android.step1': 'Menü (⋮) düğmesine dokunun',
   'install.android.step2': '"Ana Ekrana Ekle" seçin',
   'install.gotit': 'Anladım',
+
+  // Project Gallery
+  'gallery.title': 'Proje Geçmişi',
+  'gallery.empty': 'Kayıtlı proje yok',
+  'gallery.emptyHint': 'Yeni bir görsel yüklendiğinde projeler otomatik kaydedilir',
+  'gallery.clearAll': 'Tümünü Sil',
+  'gallery.clearConfirm': 'Tümü silinsin mi?',
+  'gallery.restoreConfirm': 'Bu projeyi yükle? Kaydedilmemiş değişiklikler kaybolacak.',
+  'gallery.confirm': 'Yükle',
+  'gallery.cancel': 'İptal',
+  'gallery.cacheUsage': 'Önbellek: {used} / {limit}',
+  'gallery.delete': 'Sil',
+  'gallery.rename': 'Yeniden adlandırmak için çift tıklayın',
+  'gallery.autoSaved': 'Otomatik kaydedildi',
+  'gallery.recentProjects': 'Son Projeler',
 };
 
 export default tr;

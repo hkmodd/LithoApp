@@ -137,6 +137,21 @@ const de: Record<TranslationKey, string> = {
   'install.android.step1': 'Tippe auf Menü (⋮)',
   'install.android.step2': 'Tippe auf "Zum Startbildschirm hinzufügen"',
   'install.gotit': 'Verstanden',
+
+  // Project Gallery
+  'gallery.title': 'Projektverlauf',
+  'gallery.empty': 'Keine gespeicherten Projekte',
+  'gallery.emptyHint': 'Projekte werden automatisch beim Laden eines neuen Bildes gespeichert',
+  'gallery.clearAll': 'Alle löschen',
+  'gallery.clearConfirm': 'Alle löschen?',
+  'gallery.restoreConfirm': 'Dieses Projekt laden? Nicht gespeicherte Änderungen gehen verloren.',
+  'gallery.confirm': 'Laden',
+  'gallery.cancel': 'Abbrechen',
+  'gallery.cacheUsage': 'Cache: {used} / {limit}',
+  'gallery.delete': 'Löschen',
+  'gallery.rename': 'Doppelklick zum Umbenennen',
+  'gallery.autoSaved': 'Automatisch gespeichert',
+  'gallery.recentProjects': 'Letzte Projekte',
 };
 
 export default de;

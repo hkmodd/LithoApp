@@ -128,6 +128,21 @@ const nl: Record<TranslationKey, string> = {
   'install.android.step1': 'Tik op Menu (⋮)',
   'install.android.step2': 'Tik op "Toevoegen aan startscherm"',
   'install.gotit': 'Begrepen',
+
+  // Project Gallery
+  'gallery.title': 'Projectgeschiedenis',
+  'gallery.empty': 'Geen opgeslagen projecten',
+  'gallery.emptyHint': 'Projecten worden automatisch opgeslagen bij het laden van een nieuw afbeelding',
+  'gallery.clearAll': 'Alles wissen',
+  'gallery.clearConfirm': 'Alles verwijderen?',
+  'gallery.restoreConfirm': 'Dit project laden? Niet-opgeslagen wijzigingen gaan verloren.',
+  'gallery.confirm': 'Laden',
+  'gallery.cancel': 'Annuleren',
+  'gallery.cacheUsage': 'Cache: {used} / {limit}',
+  'gallery.delete': 'Verwijderen',
+  'gallery.rename': 'Dubbelklik om te hernoemen',
+  'gallery.autoSaved': 'Automatisch opgeslagen',
+  'gallery.recentProjects': 'Recente Projecten',
 };
 
 export default nl;

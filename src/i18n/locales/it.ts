@@ -141,6 +141,21 @@ const it: Record<TranslationKey, string> = {
   'install.android.step1': 'Tocca il Menu (⋮)',
   'install.android.step2': 'Tocca "Aggiungi a Home"',
   'install.gotit': 'Capito',
+
+  // Project Gallery
+  'gallery.title': 'Cronologia Progetti',
+  'gallery.empty': 'Nessun progetto salvato',
+  'gallery.emptyHint': 'I progetti vengono salvati automaticamente quando carichi una nuova immagine',
+  'gallery.clearAll': 'Cancella Tutto',
+  'gallery.clearConfirm': 'Eliminare tutto?',
+  'gallery.restoreConfirm': 'Caricare questo progetto? Le modifiche non salvate andranno perse.',
+  'gallery.confirm': 'Carica',
+  'gallery.cancel': 'Annulla',
+  'gallery.cacheUsage': 'Cache: {used} / {limit}',
+  'gallery.delete': 'Elimina',
+  'gallery.rename': 'Doppio clic per rinominare',
+  'gallery.autoSaved': 'Salvataggio auto',
+  'gallery.recentProjects': 'Progetti Recenti',
 };
 
 export default it;

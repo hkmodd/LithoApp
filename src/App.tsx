@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
-import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen, Thermometer } from 'lucide-react';
+import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen, Thermometer, Clock } from 'lucide-react';
 import LithoPreview from './components/LithoPreview';
 import ErrorBoundary from './components/ErrorBoundary';
 import ViewportOverlay from './components/ViewportOverlay';
@@ -10,6 +10,7 @@ import GeometryTab from './components/tabs/GeometryTab';
 import FrameTab from './components/tabs/FrameTab';
 import ColorLithoTab from './components/tabs/ColorLithoTab';
 import ExportBar from './components/ExportBar';
+import ProjectGallery from './components/ProjectGallery';
 import ImageEditor from './components/ImageEditor';
 import CropOverlay from './components/CropOverlay';
 import LanguageSelector from './components/LanguageSelector';
@@ -96,6 +97,7 @@ export default function App() {
   const [showTexture, setShowTexture] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [booted, setBooted] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
 
   // ── Derive preview mesh: either the active color channel or the main meshData ──
   const previewMesh = useMemo(() => {
@@ -339,6 +341,10 @@ export default function App() {
   // Shared file loading logic (used by both click-upload and drag & drop)
   const loadImageFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    // Auto-snapshot current project to history before loading new image
+    if (imageSrc) {
+      useProjectStore.getState().saveToHistory();
+    }
     const reader = new FileReader();
     reader.onload = (event) => {
       const src = event.target?.result as string;
@@ -672,6 +678,14 @@ export default function App() {
                   e.target.value = ''; // allow re-import of same file
                 }}
               />
+              <button
+                onClick={() => setShowGallery(true)}
+                title="Project History"
+                aria-label="Open project history gallery"
+                className="p-1.5 rounded-full text-gray-600 bg-white/5 hover:bg-white/10 hover:text-gray-400 transition-colors"
+              >
+                <Clock size={13} />
+              </button>
 
               <div className="w-px h-4 bg-white/10 mx-0.5" />
 
@@ -807,6 +821,8 @@ export default function App() {
         </div>
       </motion.div>
 
+      {/* Project Gallery Modal */}
+      <ProjectGallery open={showGallery} onClose={() => setShowGallery(false)} />
     </div>
   );
 }

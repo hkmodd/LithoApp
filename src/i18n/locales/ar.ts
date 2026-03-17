@@ -138,6 +138,21 @@ const ar: Record<TranslationKey, string> = {
   'install.android.step1': 'اضغط على القائмة (⋮)',
   'install.android.step2': 'اضغط على "إضافة للشاشة الرئيسية"',
   'install.gotit': 'فهمت',
+
+  // Project Gallery
+  'gallery.title': 'سجل المشاريع',
+  'gallery.empty': 'لا توجد مشاريع محفوظة',
+  'gallery.emptyHint': 'يتم حفظ المشاريع تلقائياً عند تحميل صورة جديدة',
+  'gallery.clearAll': 'مسح الكل',
+  'gallery.clearConfirm': 'حذف الكل؟',
+  'gallery.restoreConfirm': 'تحميل هذا المشروع؟ ستفقد التغييرات غير المحفوظة.',
+  'gallery.confirm': 'تحميل',
+  'gallery.cancel': 'إلغاء',
+  'gallery.cacheUsage': 'ذاكرة التخزين: {used} / {limit}',
+  'gallery.delete': 'حذف',
+  'gallery.rename': 'انقر مرتين لإعادة التسمية',
+  'gallery.autoSaved': 'حفظ تلقائي',
+  'gallery.recentProjects': 'المشاريع الأخيرة',
 };
 
 export default ar;

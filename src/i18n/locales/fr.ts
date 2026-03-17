@@ -137,6 +137,21 @@ const fr: Record<TranslationKey, string> = {
   'install.android.step1': 'Appuyez sur Menu (⋮)',
   'install.android.step2': 'Appuyez sur "Ajouter à l\'écran d\'accueil"',
   'install.gotit': 'Compris',
+
+  // Project Gallery
+  'gallery.title': 'Historique des Projets',
+  'gallery.empty': 'Aucun projet sauvegardé',
+  'gallery.emptyHint': 'Les projets sont sauvegardés automatiquement lors du chargement d\'une nouvelle image',
+  'gallery.clearAll': 'Tout effacer',
+  'gallery.clearConfirm': 'Tout supprimer ?',
+  'gallery.restoreConfirm': 'Charger ce projet ? Les modifications non sauvegardées seront perdues.',
+  'gallery.confirm': 'Charger',
+  'gallery.cancel': 'Annuler',
+  'gallery.cacheUsage': 'Cache : {used} / {limit}',
+  'gallery.delete': 'Supprimer',
+  'gallery.rename': 'Double-cliquer pour renommer',
+  'gallery.autoSaved': 'Sauvegardé auto',
+  'gallery.recentProjects': 'Projets Récents',
 };
 
 export default fr;

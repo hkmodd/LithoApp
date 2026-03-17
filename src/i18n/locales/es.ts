@@ -137,6 +137,21 @@ const es: Record<TranslationKey, string> = {
   'install.android.step1': 'Toca el Menú (⋮)',
   'install.android.step2': 'Toca "Añadir a pantalla de inicio"',
   'install.gotit': 'Entendido',
+
+  // Project Gallery
+  'gallery.title': 'Historial de Proyectos',
+  'gallery.empty': 'No hay proyectos guardados',
+  'gallery.emptyHint': 'Los proyectos se guardan automáticamente al cargar una nueva imagen',
+  'gallery.clearAll': 'Borrar Todo',
+  'gallery.clearConfirm': '¿Eliminar todo?',
+  'gallery.restoreConfirm': 'Cargar este proyecto? Los cambios no guardados se perderán.',
+  'gallery.confirm': 'Cargar',
+  'gallery.cancel': 'Cancelar',
+  'gallery.cacheUsage': 'Caché: {used} / {limit}',
+  'gallery.delete': 'Eliminar',
+  'gallery.rename': 'Doble clic para renombrar',
+  'gallery.autoSaved': 'Guardado auto',
+  'gallery.recentProjects': 'Proyectos Recientes',
 };
 
 export default es;

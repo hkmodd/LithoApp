@@ -138,6 +138,21 @@ const zh: Record<TranslationKey, string> = {
   'install.android.step1': '点击菜单（⋮）按钮',
   'install.android.step2': '点击「添加到主屏幕」',
   'install.gotit': '知道了',
+
+  // Project Gallery
+  'gallery.title': '项目历史',
+  'gallery.empty': '暂无保存的项目',
+  'gallery.emptyHint': '加载新图片时项目会自动保存',
+  'gallery.clearAll': '全部清除',
+  'gallery.clearConfirm': '删除全部？',
+  'gallery.restoreConfirm': '加载此项目？未保存的更改将丢失。',
+  'gallery.confirm': '加载',
+  'gallery.cancel': '取消',
+  'gallery.cacheUsage': '缓存：{used} / {limit}',
+  'gallery.delete': '删除',
+  'gallery.rename': '双击重命名',
+  'gallery.autoSaved': '自动保存',
+  'gallery.recentProjects': '最近的项目',
 };
 
 export default zh;

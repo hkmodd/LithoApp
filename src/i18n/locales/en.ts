@@ -151,6 +151,21 @@ const en = {
   'install.android.step1': 'Tap the Menu (⋮) button',
   'install.android.step2': 'Tap "Add to Home Screen"',
   'install.gotit': 'Got it',
+
+  // Project Gallery
+  'gallery.title': 'Project History',
+  'gallery.empty': 'No saved projects yet',
+  'gallery.emptyHint': 'Projects are auto-saved when you load a new image',
+  'gallery.clearAll': 'Clear All',
+  'gallery.clearConfirm': 'Delete all?',
+  'gallery.restoreConfirm': 'Load this project? Unsaved changes will be lost.',
+  'gallery.confirm': 'Load',
+  'gallery.cancel': 'Cancel',
+  'gallery.cacheUsage': 'Cache: {used} / {limit}',
+  'gallery.delete': 'Delete',
+  'gallery.rename': 'Double-click to rename',
+  'gallery.autoSaved': 'Auto-saved',
+  'gallery.recentProjects': 'Recent Projects',
 } as const;
 
 export type TranslationKey = keyof typeof en;

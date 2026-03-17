@@ -137,6 +137,21 @@ const ko: Record<TranslationKey, string> = {
   'install.android.step1': '메뉴 (⋮) 탭',
   'install.android.step2': '"홈 화면에 추가" 탭',
   'install.gotit': '확인',
+
+  // Project Gallery
+  'gallery.title': '프로젝트 기록',
+  'gallery.empty': '저장된 프로젝트 없음',
+  'gallery.emptyHint': '새 이미지를 로드하면 프로젝트가 자동 저장됩니다',
+  'gallery.clearAll': '모두 삭제',
+  'gallery.clearConfirm': '모두 삭제하시겠습니까?',
+  'gallery.restoreConfirm': '이 프로젝트를 로드하시겠습니까? 저장하지 않은 변경사항은 손실됩니다.',
+  'gallery.confirm': '로드',
+  'gallery.cancel': '취소',
+  'gallery.cacheUsage': '캐시: {used} / {limit}',
+  'gallery.delete': '삭제',
+  'gallery.rename': '더블 클릭하여 이름 변경',
+  'gallery.autoSaved': '자동 저장',
+  'gallery.recentProjects': '최근 프로젝트',
 };
 
 export default ko;

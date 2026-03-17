@@ -137,6 +137,21 @@ const hi: Record<TranslationKey, string> = {
   'install.android.step1': 'मेन्यू (⋮) दबधाएं',
   'install.android.step2': '"होम स्क्रीन पर जोड़ें" दबधाएं',
   'install.gotit': 'समझ गयर',
+
+  // Project Gallery
+  'gallery.title': 'प्रोजेक्ट इतिहास',
+  'gallery.empty': 'कोई सहेजे गए प्रोजेक्ट नहीं',
+  'gallery.emptyHint': 'नई छवि लोड करने पर प्रोजेक्ट स्वतः सहेजे जाते हैं',
+  'gallery.clearAll': 'सब मिटाएं',
+  'gallery.clearConfirm': 'सब हटाएं?',
+  'gallery.restoreConfirm': 'यह प्रोजेक्ट लोड करें? बिना सहेजे बदलाव खो जाएंगे।',
+  'gallery.confirm': 'लोड करें',
+  'gallery.cancel': 'रद्द करें',
+  'gallery.cacheUsage': 'कैश: {used} / {limit}',
+  'gallery.delete': 'हटाएं',
+  'gallery.rename': 'नाम बदलने के लिए डबल-क्लिक करें',
+  'gallery.autoSaved': 'ऑटो-सेव',
+  'gallery.recentProjects': 'हाल के प्रोजेक्ट',
 };
 
 export default hi;

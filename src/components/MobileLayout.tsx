@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer } from 'lucide-react';
+import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer, Clock } from 'lucide-react';
 import LithoPreview from './LithoPreview';
 import ErrorBoundary from './ErrorBoundary';
 import ImageTab from './tabs/ImageTab';
@@ -12,10 +12,12 @@ import LanguageSelector from './LanguageSelector';
 import ImageEditor from './ImageEditor';
 import CropOverlay from './CropOverlay';
 import VersionBadge from './VersionBadge';
+import ProjectGallery from './ProjectGallery';
 import MobileNavBar, { type MobileTab } from './MobileNavBar';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
+import { useProjectStore } from '../store/useProjectStore';
 import { useHistoryStore } from '../store/useHistoryStore';
 import { useTranslation } from '../i18n';
 import type { CMYWChannel, ColorChannel } from '../workers/types';
@@ -51,6 +53,7 @@ export default function MobileLayout({
   const canRedo = useHistoryStore((s) => s.canRedo);
   const { t } = useTranslation();
   const [mobileTab, setMobileTab] = useState<MobileTab>('image');
+  const [showGallery, setShowGallery] = useState(false);
 
   const hasImage = !!imageData;
 
@@ -71,6 +74,7 @@ export default function MobileLayout({
   // ─── PHASE A: Onboarding (no image loaded) ─────────────────────────
   if (!hasImage) {
     return (
+      <>
       <div className="fixed inset-0 bg-[#050505] text-white overflow-hidden font-sans flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/png, image/jpeg" className="hidden" />
 
@@ -199,14 +203,25 @@ export default function MobileLayout({
           <div className="flex items-center justify-center gap-3">
             <LanguageSelector />
             <VersionBadge />
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowGallery(true); }}
+              className="p-1.5 rounded-full bg-white/5 text-gray-500 hover:text-white transition-colors"
+              title="Project History"
+              aria-label="Open project history"
+            >
+              <Clock className="w-3 h-3" />
+            </button>
           </div>
         </motion.div>
       </div>
+      <ProjectGallery open={showGallery} onClose={() => setShowGallery(false)} />
+      </>
     );
   }
 
   // ─── PHASE B: Workspace (image loaded) ─────────────────────────────
   return (
+    <>
     <div className="fixed inset-0 bg-[#050505] text-white overflow-hidden font-sans selection:bg-[#2563EB]/30 flex flex-col">
       <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/png, image/jpeg" className="hidden" />
 
@@ -451,5 +466,7 @@ export default function MobileLayout({
         hasMesh={!!previewMesh}
       />
     </div>
+    <ProjectGallery open={showGallery} onClose={() => setShowGallery(false)} />
+    </>
   );
 }
