@@ -131,6 +131,12 @@ const hi: Record<TranslationKey, string> = {
   'install.offline': 'ऑफ़लाइन काम',
   'install.native': 'नेटिव अनुभव',
   'install.cta': 'ऐप इंस्टॉल करें',
+  'install.howto': 'कैसे इंस्टॉल करें',
+  'install.ios.step1': 'शेयर बटन दबधाएं (नीचे बगर)',
+  'install.ios.step2': '"होम स्क्रीन पर जोड़ें" दबधाएं',
+  'install.android.step1': 'मेन्यू (⋮) दबधाएं',
+  'install.android.step2': '"होम स्क्रीन पर जोड़ें" दबधाएं',
+  'install.gotit': 'समझ गयर',
 };
 
 export default hi;

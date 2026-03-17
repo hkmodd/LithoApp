@@ -131,6 +131,12 @@ const ko: Record<TranslationKey, string> = {
   'install.offline': '오프라인 지원',
   'install.native': '네이티브 경험',
   'install.cta': '앱 설치',
+  'install.howto': '설치 방법',
+  'install.ios.step1': '공유 버튼 탭 (하단 바)',
+  'install.ios.step2': '"홈 화면에 추가" 탭',
+  'install.android.step1': '메뉴 (⋮) 탭',
+  'install.android.step2': '"홈 화면에 추가" 탭',
+  'install.gotit': '확인',
 };
 
 export default ko;

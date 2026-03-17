@@ -135,6 +135,12 @@ const it: Record<TranslationKey, string> = {
   'install.offline': 'Funziona offline',
   'install.native': 'Esperienza nativa',
   'install.cta': 'Installa App',
+  'install.howto': 'Come Installare',
+  'install.ios.step1': 'Tocca il pulsante Condividi (barra inferiore)',
+  'install.ios.step2': 'Tocca "Aggiungi a Home"',
+  'install.android.step1': 'Tocca il Menu (⋮)',
+  'install.android.step2': 'Tocca "Aggiungi a Home"',
+  'install.gotit': 'Capito',
 };
 
 export default it;

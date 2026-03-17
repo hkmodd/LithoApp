@@ -122,6 +122,12 @@ const tr: Record<TranslationKey, string> = {
   'install.offline': 'Çevrimdışı çalışır',
   'install.native': 'Yerel deneyim',
   'install.cta': 'Uygulamayı Kur',
+  'install.howto': 'Nasıl Kurulur',
+  'install.ios.step1': 'Paylaş düğmesine dokunun (alt çubuk)',
+  'install.ios.step2': '"Ana Ekrana Ekle" seçin',
+  'install.android.step1': 'Menü (⋮) düğmesine dokunun',
+  'install.android.step2': '"Ana Ekrana Ekle" seçin',
+  'install.gotit': 'Anladım',
 };
 
 export default tr;

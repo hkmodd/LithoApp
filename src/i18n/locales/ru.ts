@@ -131,6 +131,12 @@ const ru: Record<TranslationKey, string> = {
   'install.offline': 'Работает офлайн',
   'install.native': 'Нативный опыт',
   'install.cta': 'Установить',
+  'install.howto': 'Как установить',
+  'install.ios.step1': 'Нажмите кнопку Поделиться (внизу)',
+  'install.ios.step2': 'Нажмите "На экран Домой"',
+  'install.android.step1': 'Нажмите Меню (⋮)',
+  'install.android.step2': 'Нажмите "Добавить на главный экран"',
+  'install.gotit': 'Понятно',
 };
 
 export default ru;

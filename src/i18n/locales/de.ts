@@ -131,6 +131,12 @@ const de: Record<TranslationKey, string> = {
   'install.offline': 'Offline nutzbar',
   'install.native': 'Natives Erlebnis',
   'install.cta': 'App installieren',
+  'install.howto': 'So installieren',
+  'install.ios.step1': 'Tippe auf Teilen (untere Leiste)',
+  'install.ios.step2': 'Tippe auf "Zum Home-Bildschirm"',
+  'install.android.step1': 'Tippe auf Menü (⋮)',
+  'install.android.step2': 'Tippe auf "Zum Startbildschirm hinzufügen"',
+  'install.gotit': 'Verstanden',
 };
 
 export default de;

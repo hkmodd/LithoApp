@@ -131,6 +131,12 @@ const ja: Record<TranslationKey, string> = {
   'install.offline': 'オフライン対応',
   'install.native': 'ネイティブ体験',
   'install.cta': 'アプリをインストール',
+  'install.howto': 'インストール方法',
+  'install.ios.step1': '共有ボタンをタップ（下部バー）',
+  'install.ios.step2': '「ホーム画面に追加」をタップ',
+  'install.android.step1': 'メニュー（⋮）をタップ',
+  'install.android.step2': '「ホーム画面に追加」をタップ',
+  'install.gotit': '了解',
 };
 
 export default ja;

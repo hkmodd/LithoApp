@@ -122,6 +122,12 @@ const nl: Record<TranslationKey, string> = {
   'install.offline': 'Offline beschikbaar',
   'install.native': 'Native ervaring',
   'install.cta': 'App installeren',
+  'install.howto': 'Hoe te installeren',
+  'install.ios.step1': 'Tik op Delen (onderste balk)',
+  'install.ios.step2': 'Tik op "Zet op beginscherm"',
+  'install.android.step1': 'Tik op Menu (⋮)',
+  'install.android.step2': 'Tik op "Toevoegen aan startscherm"',
+  'install.gotit': 'Begrepen',
 };
 
 export default nl;

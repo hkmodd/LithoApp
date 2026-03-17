@@ -132,6 +132,12 @@ const zh: Record<TranslationKey, string> = {
   'install.offline': '离线可用',
   'install.native': '原生体验',
   'install.cta': '安装应用',
+  'install.howto': '如何安装',
+  'install.ios.step1': '点击分享按钮（底部栏）',
+  'install.ios.step2': '点击「添加到主屏幕」',
+  'install.android.step1': '点击菜单（⋮）按钮',
+  'install.android.step2': '点击「添加到主屏幕」',
+  'install.gotit': '知道了',
 };
 
 export default zh;

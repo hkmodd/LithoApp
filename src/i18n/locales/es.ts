@@ -131,6 +131,12 @@ const es: Record<TranslationKey, string> = {
   'install.offline': 'Sin conexión',
   'install.native': 'Experiencia nativa',
   'install.cta': 'Instalar App',
+  'install.howto': 'Cómo instalar',
+  'install.ios.step1': 'Toca el botón Compartir (barra inferior)',
+  'install.ios.step2': 'Toca "Añadir a la pantalla de inicio"',
+  'install.android.step1': 'Toca el Menú (⋮)',
+  'install.android.step2': 'Toca "Añadir a pantalla de inicio"',
+  'install.gotit': 'Entendido',
 };
 
 export default es;

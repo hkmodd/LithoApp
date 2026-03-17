@@ -145,6 +145,12 @@ const en = {
   'install.offline': 'Works Offline',
   'install.native': 'Native Feel',
   'install.cta': 'Install App',
+  'install.howto': 'How to Install',
+  'install.ios.step1': 'Tap the Share button (bottom bar)',
+  'install.ios.step2': 'Tap "Add to Home Screen"',
+  'install.android.step1': 'Tap the Menu (⋮) button',
+  'install.android.step2': 'Tap "Add to Home Screen"',
+  'install.gotit': 'Got it',
 } as const;
 
 export type TranslationKey = keyof typeof en;

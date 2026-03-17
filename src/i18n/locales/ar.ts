@@ -132,6 +132,12 @@ const ar: Record<TranslationKey, string> = {
   'install.offline': 'يعمل بدون إنترنت',
   'install.native': 'أداء أصلي',
   'install.cta': 'تثبيت التطبيق',
+  'install.howto': 'كيفية التثبيت',
+  'install.ios.step1': 'اضغط على زر المشاركة (الشريط السفلي)',
+  'install.ios.step2': 'اضغط على "إضافة للشاشة الرئيسية"',
+  'install.android.step1': 'اضغط على القائмة (⋮)',
+  'install.android.step2': 'اضغط على "إضافة للشاشة الرئيسية"',
+  'install.gotit': 'فهمت',
 };
 
 export default ar;

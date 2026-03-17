@@ -131,6 +131,12 @@ const fr: Record<TranslationKey, string> = {
   'install.offline': 'Hors ligne',
   'install.native': 'Natif',
   'install.cta': 'Installer l\'app',
+  'install.howto': 'Comment installer',
+  'install.ios.step1': 'Appuyez sur Partager (barre inférieure)',
+  'install.ios.step2': 'Appuyez sur "Sur l\'écran d\'accueil"',
+  'install.android.step1': 'Appuyez sur Menu (⋮)',
+  'install.android.step2': 'Appuyez sur "Ajouter à l\'écran d\'accueil"',
+  'install.gotit': 'Compris',
 };
 
 export default fr;
