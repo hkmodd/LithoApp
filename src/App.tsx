@@ -393,6 +393,8 @@ export default function App() {
     return (
       <>
         <BootSplash ready={booted} />
+        <UpdateToast />
+        <InstallBanner />
         <MobileLayout
           wireframe={wireframe}
           setWireframe={setWireframe}
