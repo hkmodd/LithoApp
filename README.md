@@ -8,6 +8,7 @@
 ![React](https://img.shields.io/badge/React_19-61DAFB?logo=react&logoColor=black)
 ![Three.js](https://img.shields.io/badge/Three.js-000?logo=threedotjs&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![License](https://img.shields.io/badge/License-BSL_1.1-red)
 ![Rust](https://img.shields.io/badge/WASM-654FF0?logo=webassembly&logoColor=white)
 
 </div>
