@@ -12,7 +12,7 @@
 
 import { create } from 'zustand';
 import { useAppStore } from './useAppStore';
-import type { AppMode, LithoParams } from '../workers/types';
+import type { AppMode, LithoParams, ImageEdits } from '../workers/types';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -26,6 +26,8 @@ export interface ProjectData {
   mode: AppMode;
   /** All litho parameters */
   lithoParams: LithoParams;
+  /** Non-destructive image edits */
+  imageEdits?: ImageEdits;
   /** Base64 data-URL of the source image (nullable) */
   imageSrc: string | null;
 }
@@ -66,25 +68,31 @@ const STORAGE_KEY = 'lithoapp-project';
 
 /** Capture current app state into a serializable envelope */
 function captureProject(): ProjectData {
-  const { mode, lithoParams, imageSrc } = useAppStore.getState();
+  const { mode, lithoParams, imageSrc, imageEdits } = useAppStore.getState();
   return {
     version: 1,
     savedAt: new Date().toISOString(),
     mode,
     lithoParams: structuredClone(lithoParams),
+    imageEdits: structuredClone(imageEdits),
     imageSrc,
   };
 }
 
 /** Restore a project snapshot into the app store */
 function restoreProject(data: ProjectData): void {
-  const { setMode, updateLithoParams, setImage } = useAppStore.getState();
+  const { setMode, updateLithoParams, setImage, updateImageEdits } = useAppStore.getState();
 
   // Restore mode
   setMode(data.mode);
 
   // Restore params (with _skipHistory to avoid polluting undo stack)
   updateLithoParams({ ...data.lithoParams, _skipHistory: true });
+
+  // Restore image edits
+  if (data.imageEdits) {
+    updateImageEdits(data.imageEdits);
+  }
 
   // Restore image — need to rebuild ImageData from the data URL
   if (data.imageSrc) {

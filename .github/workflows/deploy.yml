@@ -66,6 +66,8 @@ jobs:
 
       - name: Build Vite
         run: npm run build
+        env:
+          VITE_APP_VERSION: ${{ github.sha }}
 
       # --- Deploy ---
       - name: Setup Pages

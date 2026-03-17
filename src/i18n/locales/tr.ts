@@ -110,6 +110,18 @@ const tr: Record<TranslationKey, string> = {
   'color.registrationPins': 'Registration Pins',
   'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
   'color.plateGap': 'Gap Between Plates',
+
+  // Update toast
+  'update.available': 'Yeni sürüm mevcut',
+  'update.hint': 'En son özellikler için güncelleyin',
+  'update.action': 'Güncelle',
+
+  'install.title': 'LithoApp Kur',
+  'install.subtitle': 'Tam yerel deneyim — daha hızlı, çevrimdışı hazır.',
+  'install.fast': 'Anında başlat',
+  'install.offline': 'Çevrimdışı çalışır',
+  'install.native': 'Yerel deneyim',
+  'install.cta': 'Uygulamayı Kur',
 };
 
 export default tr;

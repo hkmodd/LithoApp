@@ -132,6 +132,19 @@ const en = {
   'color.registrationPins': 'Registration Pins',
   'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
   'color.plateGap': 'Gap Between Plates',
+
+  // Update toast
+  'update.available': 'New version available',
+  'update.hint': 'Refresh to get the latest features',
+  'update.action': 'Update',
+
+  // PWA Install prompt
+  'install.title': 'Install LithoApp',
+  'install.subtitle': 'Get the full native experience — faster, offline-ready.',
+  'install.fast': 'Instant Launch',
+  'install.offline': 'Works Offline',
+  'install.native': 'Native Feel',
+  'install.cta': 'Install App',
 } as const;
 
 export type TranslationKey = keyof typeof en;

@@ -119,6 +119,18 @@ const ko: Record<TranslationKey, string> = {
   'color.registrationPins': 'Registration Pins',
   'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
   'color.plateGap': 'Gap Between Plates',
+
+  // Update toast
+  'update.available': '새 버전 사용 가능',
+  'update.hint': '최신 기능을 위해 업데이트하세요',
+  'update.action': '업데이트',
+
+  'install.title': 'LithoApp 설치',
+  'install.subtitle': '완전한 네이티브 경험 — 더 빠르고, 오프라인 지원.',
+  'install.fast': '즉시 실행',
+  'install.offline': '오프라인 지원',
+  'install.native': '네이티브 경험',
+  'install.cta': '앱 설치',
 };
 
 export default ko;

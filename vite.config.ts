@@ -3,11 +3,18 @@ import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import path from 'path';
 import {defineConfig} from 'vite';
+import {readFileSync} from 'fs';
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig(() => {
   return {
     base: '/LithoApp/',
     plugins: [react(), tailwindcss(), wasm()],
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+      __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -122,6 +122,19 @@ const it: Record<TranslationKey, string> = {
   'color.registrationPins': 'Pin di allineamento',
   'color.registrationHint': 'Aggiunge pin/fori per un preciso allineamento dei livelli.',
   'color.plateGap': 'Distanza tra le piastre',
+
+  // Update toast
+  'update.available': 'Nuova versione disponibile',
+  'update.hint': 'Aggiorna per le ultime novità',
+  'update.action': 'Aggiorna',
+
+  // PWA Install prompt
+  'install.title': 'Installa LithoApp',
+  'install.subtitle': 'Esperienza nativa completa — più veloce, disponibile offline.',
+  'install.fast': 'Avvio istantaneo',
+  'install.offline': 'Funziona offline',
+  'install.native': 'Esperienza nativa',
+  'install.cta': 'Installa App',
 };
 
 export default it;

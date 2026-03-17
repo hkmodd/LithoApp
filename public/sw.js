@@ -1,6 +1,7 @@
-// LithoApp Service Worker — Cache-first for static assets, network-first for HTML
-// IMPORTANT: Bump version whenever WASM or major assets change to purge stale cache
-const CACHE_NAME = 'lithoapp-v3';
+// LithoApp Service Worker — Cache-first for assets, network-first for HTML
+// Version is injected at build time via sed in CI; locally it falls back to 'dev'
+const SW_VERSION = '__SW_VERSION__'; // replaced by CI to e.g. '1.0.3'
+const CACHE_NAME = `lithoapp-${SW_VERSION}`;
 
 // Use the SW scope as base path — works on both '/' (dev) and '/LithoApp/' (GH Pages)
 const BASE = self.registration ? self.registration.scope : '/';
@@ -14,7 +15,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
-  self.skipWaiting();
+  // Don't skipWaiting() here — let the app control activation via postMessage
+  // This allows the UpdateToast to show before the page reloads
 });
 
 self.addEventListener('activate', (event) => {
@@ -24,6 +26,13 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Listen for skip-waiting command from the app
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {

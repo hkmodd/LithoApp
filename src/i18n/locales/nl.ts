@@ -110,6 +110,18 @@ const nl: Record<TranslationKey, string> = {
   'color.registrationPins': 'Registration Pins',
   'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
   'color.plateGap': 'Gap Between Plates',
+
+  // Update toast
+  'update.available': 'Nieuwe versie beschikbaar',
+  'update.hint': 'Vernieuw voor de nieuwste functies',
+  'update.action': 'Bijwerken',
+
+  'install.title': 'LithoApp installeren',
+  'install.subtitle': 'Volledige native ervaring — sneller, offline beschikbaar.',
+  'install.fast': 'Direct starten',
+  'install.offline': 'Offline beschikbaar',
+  'install.native': 'Native ervaring',
+  'install.cta': 'App installeren',
 };
 
 export default nl;

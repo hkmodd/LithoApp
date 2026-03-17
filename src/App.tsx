@@ -11,7 +11,11 @@ import FrameTab from './components/tabs/FrameTab';
 import ColorLithoTab from './components/tabs/ColorLithoTab';
 import ExportBar from './components/ExportBar';
 import ImageEditor from './components/ImageEditor';
+import CropOverlay from './components/CropOverlay';
 import LanguageSelector from './components/LanguageSelector';
+import UpdateToast from './components/UpdateToast';
+import InstallBanner from './components/InstallBanner';
+import VersionBadge from './components/VersionBadge';
 import { cn } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from './store/useAppStore';
@@ -416,6 +420,9 @@ export default function App() {
       
       {/* Boot Splash */}
       <BootSplash ready={booted} />
+      {/* Service-worker update toast */}
+      <UpdateToast />
+      <InstallBanner />
       {/* Landscape Warning Overlay */}
       <AnimatePresence>
         {isLandscape && (
@@ -667,6 +674,7 @@ export default function App() {
               <div className="w-px h-4 bg-white/10 mx-0.5" />
 
               <LanguageSelector />
+              <VersionBadge />
               <button onClick={resetLithoParams} className="text-[10px] font-mono uppercase tracking-wider text-gray-500 hover:text-white transition-colors px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10">
                 {t('app.reset')}
               </button>
@@ -720,6 +728,7 @@ export default function App() {
                   <>
                     <div className="relative group rounded-2xl overflow-hidden border border-white/10 bg-black/50 aspect-video">
                       <img src={imageSrc} alt="Source" className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
+                      <CropOverlay />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <button 
                           onClick={() => fileInputRef.current?.click()}

@@ -119,6 +119,18 @@ const fr: Record<TranslationKey, string> = {
   'color.registrationPins': 'Registration Pins',
   'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
   'color.plateGap': 'Gap Between Plates',
+
+  // Update toast
+  'update.available': 'Nouvelle version disponible',
+  'update.hint': 'Mettez à jour pour les dernières fonctionnalités',
+  'update.action': 'Mettre à jour',
+
+  'install.title': 'Installer LithoApp',
+  'install.subtitle': 'Profitez de l\'expérience native — plus rapide, hors ligne.',
+  'install.fast': 'Lancement instantané',
+  'install.offline': 'Hors ligne',
+  'install.native': 'Natif',
+  'install.cta': 'Installer l\'app',
 };
 
 export default fr;

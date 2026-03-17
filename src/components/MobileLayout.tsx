@@ -9,6 +9,9 @@ import FrameTab from './tabs/FrameTab';
 import ExportBar from './ExportBar';
 import ViewportOverlay from './ViewportOverlay';
 import LanguageSelector from './LanguageSelector';
+import ImageEditor from './ImageEditor';
+import CropOverlay from './CropOverlay';
+import VersionBadge from './VersionBadge';
 import MobileNavBar, { type MobileTab } from './MobileNavBar';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -193,8 +196,9 @@ export default function MobileLayout({
               {t('mode.colorLitho')}
             </button>
           </div>
-          <div className="flex justify-center">
+          <div className="flex items-center justify-center gap-3">
             <LanguageSelector />
+            <VersionBadge />
           </div>
         </motion.div>
       </div>
@@ -390,6 +394,7 @@ export default function MobileLayout({
                   <label className="text-[9px] font-mono uppercase tracking-[0.2em] text-gray-600">{t('upload.label')}</label>
                   <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/50 aspect-[16/9]">
                     <img src={imageSrc!} alt="Source" className="w-full h-full object-cover opacity-60" />
+                    <CropOverlay />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <button
                         onClick={() => fileInputRef.current?.click()}
@@ -400,6 +405,7 @@ export default function MobileLayout({
                       </button>
                     </div>
                   </div>
+                  <ImageEditor />
                 </div>
 
                 {/* Image processing controls (or ColorLithoTab for color-litho mode) */}

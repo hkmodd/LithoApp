@@ -120,6 +120,18 @@ const zh: Record<TranslationKey, string> = {
   'color.registrationPins': '对齐销',
   'color.registrationHint': '添加对齐销/孔以精确堆叠层。',
   'color.plateGap': '板间距',
+
+  // Update toast
+  'update.available': '新版本可用',
+  'update.hint': '刷新以获取最新功能',
+  'update.action': '更新',
+
+  'install.title': '安装 LithoApp',
+  'install.subtitle': '获得完整原生体验 — 更快、离线可用。',
+  'install.fast': '即时启动',
+  'install.offline': '离线可用',
+  'install.native': '原生体验',
+  'install.cta': '安装应用',
 };
 
 export default zh;
