@@ -25,7 +25,9 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          // Detect base path from the document — works in both dev (/) and GH Pages (/LithoApp/)
+          const base = document.querySelector('link[rel="manifest"]')?.getAttribute('href')?.replace('manifest.json', '') || '/';
+          navigator.serviceWorker.register(base + 'sw.js', { scope: base }).catch(() => {});
         });
       }
     </script>
