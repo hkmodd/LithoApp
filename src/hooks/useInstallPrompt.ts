@@ -1,17 +1,16 @@
 /**
- * useInstallPrompt — universal PWA install prompt hook.
+ * useInstallPrompt — PWA install prompt hook.
  *
- * Works across all platforms:
- * - Chromium (Chrome/Edge/Opera): captures `beforeinstallprompt` for native prompt
- * - iOS Safari: detects platform and shows manual "Add to Home" instructions
- * - Other browsers: generic install guidance
+ * Strategy:
+ * - Chromium browsers: captures `beforeinstallprompt` for a custom banner.
+ *   Does NOT call e.preventDefault() so Chrome's native mini-infobar still shows.
+ * - iOS Safari: detects Safari on iOS and shows manual "Add to Home" instructions.
+ * - Already standalone: hides everything.
  *
- * The banner shows when:
- * 1. App is NOT running in standalone mode (not already installed)
- * 2. User hasn't dismissed it (stored in localStorage with 7-day expiry)
+ * Dismiss is stored in localStorage with 7-day expiry.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -19,17 +18,17 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-export type InstallPlatform = 'chromium' | 'ios' | 'android-other' | 'desktop-other' | null;
+export type InstallPlatform = 'chromium' | 'ios' | null;
 
 const DISMISS_KEY = 'lithoapp-install-dismissed';
-const DISMISS_DAYS = 7; // Re-show after 7 days
+const DISMISS_DAYS = 7;
 
-function getDismissed(): boolean {
+function isDismissed(): boolean {
   try {
     const val = localStorage.getItem(DISMISS_KEY);
     if (!val) return false;
     const expiry = parseInt(val, 10);
-    if (Date.now() > expiry) {
+    if (isNaN(expiry) || Date.now() > expiry) {
       localStorage.removeItem(DISMISS_KEY);
       return false;
     }
@@ -39,68 +38,63 @@ function getDismissed(): boolean {
   }
 }
 
-function setDismissed(): void {
+function saveDismiss(): void {
   try {
-    const expiry = Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000;
-    localStorage.setItem(DISMISS_KEY, String(expiry));
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * 86400000));
   } catch { /* noop */ }
 }
 
 function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as unknown as { standalone?: boolean }).standalone === true // iOS Safari
+    // iOS Safari standalone
+    ('standalone' in navigator && (navigator as any).standalone === true)
   );
 }
 
-function detectPlatform(): InstallPlatform {
+function detectIOSSafari(): boolean {
+  if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
-
-  // iOS detection (iPhone, iPad, iPod)
+  // iPhone/iPad/iPod  — Safari only (not Chrome on iOS, which supports PWA differently)
   const isIOS =
     /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (isIOS) return 'ios';
-
-  // Android detection
-  const isAndroid = /Android/i.test(ua);
-
-  // Chromium detection (supports beforeinstallprompt)
-  const isChromium =
-    'BeforeInstallPromptEvent' in window ||
-    /Chrome|CriOS|Edg|OPR/i.test(ua);
-
-  if (isChromium) return 'chromium';
-  if (isAndroid) return 'android-other'; // Firefox on Android, etc.
-
-  return 'desktop-other';
+  // Exclude Chrome/Firefox/etc on iOS — they use webkit but have their own UA strings
+  const isSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+  return isSafari;
 }
 
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
-  const [dismissed, setDismissedState] = useState(getDismissed);
-  const [platform, setPlatform] = useState<InstallPlatform>(null);
+  const [dismissed, setDismissedState] = useState(isDismissed);
+  const [isIOSSafari, setIsIOSSafari] = useState(false);
+  const promptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    // Already installed as standalone
     if (isStandalone()) {
       setInstalled(true);
       return;
     }
 
-    setPlatform(detectPlatform());
+    // Detect iOS Safari for manual instructions
+    setIsIOSSafari(detectIOSSafari());
 
-    // Listen for Chromium's beforeinstallprompt
+    // Capture beforeinstallprompt (Chromium only).
+    // IMPORTANT: we do NOT call e.preventDefault() — this allows Chrome's
+    // native mini-infobar to appear on mobile, which is the standard UX.
+    // We still capture the event to offer our own custom banner as well.
     const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setPlatform('chromium'); // confirm Chromium support
+      const evt = e as BeforeInstallPromptEvent;
+      promptRef.current = evt;
+      setDeferredPrompt(evt);
     };
 
     const appInstalledHandler = () => {
       setInstalled(true);
       setDeferredPrompt(null);
+      promptRef.current = null;
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -113,31 +107,36 @@ export function useInstallPrompt() {
   }, []);
 
   const install = useCallback(async () => {
-    if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
-    if (outcome === 'accepted') setInstalled(true);
-    return outcome === 'accepted';
-  }, [deferredPrompt]);
+    const prompt = promptRef.current;
+    if (!prompt) return false;
+    try {
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      promptRef.current = null;
+      setDeferredPrompt(null);
+      if (outcome === 'accepted') setInstalled(true);
+      return outcome === 'accepted';
+    } catch {
+      return false;
+    }
+  }, []);
 
   const dismiss = useCallback(() => {
     setDismissedState(true);
-    setDismissed();
+    saveDismiss();
   }, []);
 
-  // Show banner unless installed or dismissed
-  // For Chromium: always show (with or without deferredPrompt)
-  // For iOS/other: show instructions
-  const showBanner = !installed && !dismissed && platform !== null;
+  // Determine what to show
+  const canShowChromium = !!deferredPrompt && !installed && !dismissed;
+  const canShowIOS = isIOSSafari && !installed && !dismissed;
 
   return {
-    /** Whether to show the install banner */
-    showBanner,
-    /** Detected platform for conditional UI */
-    platform,
-    /** Whether the native Chromium prompt is available */
-    hasNativePrompt: !!deferredPrompt,
+    /** Show native (Chromium) install banner */
+    canInstall: canShowChromium,
+    /** Show iOS Safari manual instructions */
+    showIOSInstructions: canShowIOS,
+    /** Platform for conditional UI */
+    platform: (canShowChromium ? 'chromium' : canShowIOS ? 'ios' : null) as InstallPlatform,
     /** Whether the app is already installed */
     isInstalled: installed,
     /** Trigger the native install prompt (Chromium only) */
