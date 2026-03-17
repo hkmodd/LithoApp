@@ -1,14 +1,18 @@
 /**
- * Color Lithophane Engine — CMYK+W Channel Generation
+ * Color Lithophane Engine — CMYW Channel Generation
  *
- * Converts an RGB image into 5 separate greyscale images (Cyan, Magenta, Yellow,
- * Key/Black, White) and generates 5 independent lithophane meshes.
+ * Converts an RGB image into 4 separate greyscale images (Cyan, Magenta, Yellow,
+ * White) and generates 4 independent lithophane meshes.
  *
- * When printed with translucent CMYK filaments on a multi-material printer (e.g.,
- * Bambu Lab AMS, Prusa MMU) and backlit, the stacked layers recreate the original
- * image colors through subtractive color mixing.
+ * Key insight: K (black) is NOT a separate physical channel. Instead, the White
+ * layer's thickness controls luminosity:
+ *   - Thick white → blocks light → appears dark/black
+ *   - Thin  white → transmits light → appears bright
  *
- * Algorithm reference: lithophanemaker.com "Printed Solid CMYK" palette.
+ * C/M/Y are thin color filter layers printed on top of the white base, each
+ * limited to `colorThickness` mm (default 0.6mm).
+ *
+ * Algorithm reference: lithophanemaker.com "Chromaphane" / CMYW palette approach.
  */
 
 import {
@@ -17,27 +21,26 @@ import {
   LithoParams,
   WasmLithoModule,
   ColorMeshSet,
-  CMYKChannel,
+  CMYWChannel,
   COLOR_CHANNELS,
 } from './types';
 
-/** Per-pixel CMYK+W decomposition result (values 0–1) */
-interface CMYKWPixel {
+/** Per-pixel CMYW decomposition result (values 0–1) */
+interface CMYWPixel {
   c: number;
   m: number;
   y: number;
-  k: number;
-  w: number;
+  k: number; // intermediate — used only to compute white thickness, NOT a separate layer
 }
 
 /**
- * Convert a single RGB pixel to CMYK+W using standard UCR (Under Color Removal).
+ * Convert a single RGB pixel to CMYW using standard UCR (Under Color Removal).
  *
- * K = min(C, M, Y)  — "Key" absorbs equal parts of all colors
- * C', M', Y' = (X - K) / (1 - K) — remaining after K is subtracted
- * W = 1 - K — white channel controls light transmission (thicker = more light)
+ * K = min(C', M', Y')  — the achromatic component
+ * C, M, Y = (X - K) / (1 - K) — pure color components after K removal
+ * White thickness ∝ K (high K → thick white → dark pixel)
  */
-export function rgbToCmykw(r: number, g: number, b: number): CMYKWPixel {
+export function rgbToCmyw(r: number, g: number, b: number): CMYWPixel {
   // Normalize to 0–1
   const rn = r / 255;
   const gn = g / 255;
@@ -48,42 +51,43 @@ export function rgbToCmykw(r: number, g: number, b: number): CMYKWPixel {
   let m = 1 - gn;
   let y = 1 - bn;
 
-  // Key (black) is the minimum of CMY
+  // Key (black) is the minimum of CMY — used for white thickness calculation
   const k = Math.min(c, m, y);
 
-  // Remove the K component from CMY
+  // Remove the K component from CMY to get pure color amounts
   if (k < 1) {
     const inv = 1 / (1 - k);
     c = (c - k) * inv;
     m = (m - k) * inv;
     y = (y - k) * inv;
   } else {
-    // Pure black pixel
+    // Pure black pixel — no color, all darkness comes from white thickness
     c = 0;
     m = 0;
     y = 0;
   }
 
-  // White channel: inverse of key — thicker white = more light passes through
-  const w = 1 - k;
-
-  return { c, m, y, k, w };
+  return { c, m, y, k };
 }
 
 /**
- * Extract a single CMYK channel from the full image, producing a greyscale ImageData.
+ * Extract a single channel from the full image, producing a greyscale ImageData.
  *
- * Channel value 0 → pixel = 255 (white, thin/base thickness)
- * Channel value 1 → pixel = 0   (black, maximum thickness)
+ * For **White** (controls luminosity via thickness):
+ *   K=0 (bright pixel) → grey=255 (thin white, light passes)
+ *   K=1 (dark  pixel) → grey=0   (thick white, blocks light)
  *
- * This maps directly to how generate_lithophane interprets pixel brightness:
- * darker pixels = thicker mesh.
+ * For **C/M/Y** (color filter layers):
+ *   Channel=0 (no color) → grey=255 (thin, no material)
+ *   Channel=1 (full color) → grey=0  (max filter thickness)
+ *
+ * The WASM engine interprets darker pixels = thicker mesh.
  */
 function extractChannelImage(
   sourceData: Uint8ClampedArray,
   width: number,
   height: number,
-  channel: CMYKChannel
+  channel: CMYWChannel
 ): ImageData {
   const out = new ImageData(width, height);
   const data = out.data;
@@ -93,18 +97,22 @@ function extractChannelImage(
     const g = sourceData[i + 1];
     const b = sourceData[i + 2];
 
-    const cmykw = rgbToCmykw(r, g, b);
+    const cmyw = rgbToCmyw(r, g, b);
 
     let value: number;
     switch (channel) {
-      case 'cyan':    value = cmykw.c; break;
-      case 'magenta': value = cmykw.m; break;
-      case 'yellow':  value = cmykw.y; break;
-      case 'key':     value = cmykw.k; break;
-      case 'white':   value = cmykw.w; break;
+      case 'cyan':    value = cmyw.c; break;
+      case 'magenta': value = cmyw.m; break;
+      case 'yellow':  value = cmyw.y; break;
+      case 'white':
+        // White channel: K controls thickness.
+        // K=1 → value=1 → grey=0 (dark=thick white=blocks light=black)
+        // K=0 → value=0 → grey=255 (thin white=light passes=bright)
+        value = cmyw.k;
+        break;
     }
 
-    // Invert: channel value 1 → pixel 0 (dark = thick), value 0 → pixel 255 (light = thin)
+    // Invert: value 1 → pixel 0 (dark = thick), value 0 → pixel 255 (light = thin)
     const grey = Math.round((1 - value) * 255);
 
     data[i]     = grey;
@@ -117,23 +125,25 @@ function extractChannelImage(
 }
 
 /** Human-readable channel names for progress reporting */
-const CHANNEL_LABELS: Record<CMYKChannel, string> = {
+const CHANNEL_LABELS: Record<CMYWChannel, string> = {
   cyan:    'Cyan (C)',
   magenta: 'Magenta (M)',
   yellow:  'Yellow (Y)',
-  key:     'Key/Black (K)',
   white:   'White (W)',
 };
 
 /**
- * Generate a full CMYK+W color lithophane set.
+ * Generate a full CMYW color lithophane set.
  *
- * Produces 5 independent meshes, one per channel, by:
- * 1. Decomposing the source image into 5 greyscale channel images
+ * Produces 4 independent meshes, one per channel, by:
+ * 1. Decomposing the source image into 4 greyscale channel images
  * 2. Calling the WASM lithophane engine for each channel
  *
- * All shapes are supported because we reuse the same WASM engine
- * that handles flat, arc, cylinder, sphere, heart, lampshade, vase, dome.
+ * **White layer** uses the full baseThickness–maxThickness range (~0.6–2.8mm)
+ * to control luminosity.
+ *
+ * **C/M/Y layers** are limited to colorThickness (default 0.6mm) as they act
+ * only as color filters — too thick and they block all light.
  */
 export function generateColorLitho(
   imageData: ImageData,
@@ -143,13 +153,14 @@ export function generateColorLitho(
   postProgress: ProgressCallback,
   wasmModule: WasmLithoModule
 ): ColorMeshSet {
-  const results: Partial<Record<CMYKChannel, MeshEngineResult>> = {};
+  const results: Partial<Record<CMYWChannel, MeshEngineResult>> = {};
+  const colorThickness = params.colorLithoParams?.colorThickness ?? 0.6;
 
   // For each channel, extract greyscale image and generate mesh
   for (let i = 0; i < COLOR_CHANNELS.length; i++) {
     const channel = COLOR_CHANNELS[i];
     const baseProgress = (i / COLOR_CHANNELS.length) * 100;
-    const channelWeight = 100 / COLOR_CHANNELS.length; // ~20% per channel
+    const channelWeight = 100 / COLOR_CHANNELS.length; // 25% per channel
 
     postProgress(
       Math.round(baseProgress),
@@ -160,8 +171,7 @@ export function generateColorLitho(
     const channelImage = extractChannelImage(imageData.data, width, height, channel);
 
     // Step 2: Build params for this channel
-    // - Invert is false because we already handled inversion in extractChannelImage
-    // - For C/M/Y layers, we can optionally use a coarser resolution (coloredResolution)
+    const isColorLayer = channel !== 'white';
     const channelParams: LithoParams = {
       ...params,
       invert: false, // channel extraction already handles polarity
@@ -170,21 +180,24 @@ export function generateColorLitho(
       sharpness: 0.0,
     };
 
-    // Apply colored resolution for C/M/Y if configured
-    if (
-      params.colorLithoParams &&
-      (channel === 'cyan' || channel === 'magenta' || channel === 'yellow')
-    ) {
-      // coloredResolution is in mm — lower resolution = fewer vertices
-      // We scale the effective resolution parameter proportionally
-      const ratio = params.colorLithoParams.coloredResolution / 0.5; // 0.5mm is "normal" baseline
-      if (ratio > 1) {
-        channelParams.resolution = Math.max(
-          Math.floor(params.resolution / ratio),
-          50 // minimum mesh points per side
-        );
+    if (isColorLayer) {
+      // C/M/Y: limit thickness to colorThickness (thin filter layers)
+      // Base = near-zero (no material where channel value is 0)
+      channelParams.baseThickness = 0.0;
+      channelParams.maxThickness = colorThickness;
+
+      // Apply coarser resolution for color layers if configured
+      if (params.colorLithoParams) {
+        const ratio = params.colorLithoParams.coloredResolution / 0.5; // 0.5mm baseline
+        if (ratio > 1) {
+          channelParams.resolution = Math.max(
+            Math.floor(params.resolution / ratio),
+            50 // minimum mesh points per side
+          );
+        }
       }
     }
+    // White channel: uses the full baseThickness/maxThickness from params (no override)
 
     // Step 3: Generate mesh via WASM
     const channelProgress: ProgressCallback = (p, msg) => {
@@ -211,7 +224,7 @@ export function generateColorLitho(
     };
   }
 
-  postProgress(100, 'All CMYK+W channels generated');
+  postProgress(100, 'All CMYW channels generated');
 
   return results as ColorMeshSet;
 }

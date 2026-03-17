@@ -11,11 +11,10 @@ const UI_CHANNEL_COLORS: Record<ColorChannel, string> = {
   cyan:      '#06b6d4', // cyan
   magenta:   '#ec4899', // pink
   yellow:    '#eab308', // yellow
-  black:     '#a3a3a3', // neutral
   white:     '#f5f5f5', // near-white
 };
 
-const CHANNEL_KEYS: ColorChannel[] = ['composite', 'cyan', 'magenta', 'yellow', 'black', 'white'];
+const CHANNEL_KEYS: ColorChannel[] = ['composite', 'cyan', 'magenta', 'yellow', 'white'];
 
 export default function ColorLithoTab() {
   // Individual selectors — no re-render on unrelated store changes (e.g. progress)
@@ -80,9 +79,8 @@ export default function ColorLithoTab() {
           </label>
           <div className="grid grid-cols-2 gap-2">
             {(() => {
-              // Map UI channel names to engine channel names ('black' → 'key')
-              const engineKey = activeColorChannel === 'black' ? 'key' : activeColorChannel;
-              const mesh = colorMeshSet[engineKey as keyof typeof colorMeshSet];
+              // Channel names now match directly between UI and engine
+              const mesh = colorMeshSet[activeColorChannel as keyof typeof colorMeshSet];
               if (!mesh?.stats) return null;
               return (
                 <>

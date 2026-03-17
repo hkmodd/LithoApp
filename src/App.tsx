@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from './store/useAppStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { useProjectStore } from './store/useProjectStore';
-import type { LithoParams, CMYKChannel } from './workers/types';
+import type { LithoParams, CMYWChannel } from './workers/types';
 import { useTranslation } from './i18n';
 import { applyEdits, hasEdits } from './lib/imageProcessor';
 
@@ -96,7 +96,7 @@ export default function App() {
   // ── Derive preview mesh: either the active color channel or the main meshData ──
   const previewMesh = useMemo(() => {
     if (mode === 'color-litho' && colorMeshSet && activeColorChannel !== 'composite') {
-      const engineKey: CMYKChannel = activeColorChannel === 'black' ? 'key' : activeColorChannel as CMYKChannel;
+      const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       const channelMesh = colorMeshSet[engineKey];
       if (channelMesh) return channelMesh;
     }
@@ -176,7 +176,7 @@ export default function App() {
         setRegenerating(false);
         setProgress(null);
       } else if (e.data.type === 'color-complete') {
-        // Color lithophane: 5 channel meshes received
+        // Color lithophane: 4 channel meshes received (C, M, Y, W)
         startTransition(() => {
           setColorMeshSet(e.data.colorMeshSet);
           // Also set the white channel as the "primary" mesh for stats display

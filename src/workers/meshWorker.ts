@@ -1,4 +1,4 @@
-import { WorkerRequest, MeshEngineResult, WasmLithoModule, LithoParams, ProgressCallback, CMYKChannel, COLOR_CHANNELS } from './types';
+import { WorkerRequest, MeshEngineResult, WasmLithoModule, LithoParams, ProgressCallback, CMYWChannel, COLOR_CHANNELS } from './types';
 import { generateExtrusion } from './extrusionEngine';
 import { generateColorLitho } from './colorLithoEngine';
 
@@ -67,7 +67,7 @@ self.onmessage = async function (e: MessageEvent<WorkerRequest>) {
         return;
       }
       case 'color-litho': {
-        // Generate 5 separate meshes (C, M, Y, K, W)
+        // Generate 4 separate meshes (C, M, Y, W)
         const colorMeshSet = generateColorLitho(imageData, width, height, params, postProgress, wasm);
 
         // Collect all ArrayBuffers for transfer
@@ -101,7 +101,7 @@ self.onmessage = async function (e: MessageEvent<WorkerRequest>) {
         return;
       }
       case 'encode-stl-pack': {
-        // Encode all 5 CMYK channels as separate STL buffers, then ZIP
+        // Encode all 4 CMYW channels as separate STL buffers, then ZIP
         const { zipSync } = await import('fflate');
         const pack = e.data.stlPack!;
         const zipEntries: Record<string, Uint8Array> = {};

@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
 import { useHistoryStore } from '../store/useHistoryStore';
 import { useTranslation } from '../i18n';
-import type { CMYKChannel, ColorChannel } from '../workers/types';
+import type { CMYWChannel, ColorChannel } from '../workers/types';
 
 interface MobileLayoutProps {
   wireframe: boolean;
@@ -57,7 +57,7 @@ export default function MobileLayout({
       if (activeColorChannel === 'composite') {
         return colorMeshSet.white; // composite uses white channel
       }
-      const engineKey: CMYKChannel = activeColorChannel === 'black' ? 'key' : activeColorChannel as CMYKChannel;
+      const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       return colorMeshSet[engineKey] ?? colorMeshSet.white;
     }
     return meshData;

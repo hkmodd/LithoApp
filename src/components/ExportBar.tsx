@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Palette, Download, FileBox, Check, Box, Triangle, Archive } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { LithoParams } from '../store/useAppStore';
-import type { CMYKChannel, ColorMeshSet } from '../workers/types';
+import type { CMYWChannel, ColorMeshSet } from '../workers/types';
 import { COLOR_CHANNELS } from '../workers/types';
 import { encodeBinarySTL } from '../utils/stlEncoder';
 import { encodeOBJ } from '../utils/objEncoder';
@@ -154,8 +154,8 @@ export default function ExportBar() {
     setZipState('downloading');
 
     // Build stlPack: extract positions & indices from each channel
-    const stlPack: Record<CMYKChannel, { positions: Float32Array; indices: Uint32Array }> =
-      {} as Record<CMYKChannel, { positions: Float32Array; indices: Uint32Array }>;
+    const stlPack: Record<CMYWChannel, { positions: Float32Array; indices: Uint32Array }> =
+      {} as Record<CMYWChannel, { positions: Float32Array; indices: Uint32Array }>;
     for (const ch of COLOR_CHANNELS) {
       stlPack[ch] = { positions: cms[ch].positions, indices: cms[ch].indices };
     }

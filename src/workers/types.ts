@@ -3,11 +3,14 @@
 export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter' | 'color-litho';
 export type LithoShape = 'flat' | 'arc' | 'cylinder' | 'sphere' | 'heart' | 'lampshade' | 'vase' | 'dome';
 
-/** Physical CMYK+W plate identifiers used by the engine */
-export type CMYKChannel = 'cyan' | 'magenta' | 'yellow' | 'key' | 'white';
+/** Physical CMYW plate identifiers used by the engine (K is encoded in White thickness) */
+export type CMYWChannel = 'cyan' | 'magenta' | 'yellow' | 'white';
 
-/** UI-facing channel selector: includes composite preview + 'black' as alias for 'key' */
-export type ColorChannel = 'composite' | 'cyan' | 'magenta' | 'yellow' | 'black' | 'white';
+/** @deprecated Use CMYWChannel instead */
+export type CMYKChannel = CMYWChannel;
+
+/** UI-facing channel selector: includes composite preview */
+export type ColorChannel = 'composite' | 'cyan' | 'magenta' | 'yellow' | 'white';
 
 /** Non-destructive image edits applied before engine processing */
 export interface ImageEdits {
@@ -33,12 +36,14 @@ export interface ColorLithoParams {
   coloredResolution: number;  // mm per pixel for C/M/Y layers (default 0.8)
   layerHeight: number;        // mm, print layer height (default 0.1)
   firstLayerHeight: number;   // mm, first layer height (default 0.2)
+  colorThickness: number;     // mm, max thickness for each C/M/Y filter layer (default 0.6)
 }
 
 export const defaultColorLithoParams: ColorLithoParams = {
   coloredResolution: 0.8,
   layerHeight: 0.1,
   firstLayerHeight: 0.2,
+  colorThickness: 0.6,
 };
 
 export interface LithoParams {
@@ -79,24 +84,22 @@ export interface MeshEngineResult {
   stats: MeshStats;
 }
 
-/** Result of CMYK color lithophane generation: one mesh per channel */
+/** Result of CMYW color lithophane generation: one mesh per channel */
 export interface ColorMeshSet {
   cyan: MeshEngineResult;
   magenta: MeshEngineResult;
   yellow: MeshEngineResult;
-  key: MeshEngineResult;
   white: MeshEngineResult;
 }
 
-/** All engine channel names in order */
-export const COLOR_CHANNELS: CMYKChannel[] = ['cyan', 'magenta', 'yellow', 'key', 'white'];
+/** All engine channel names in print order: White (base) → Yellow → Magenta → Cyan */
+export const COLOR_CHANNELS: CMYWChannel[] = ['cyan', 'magenta', 'yellow', 'white'];
 
 /** Display colors for each engine channel (used in 3D preview tinting) */
-export const CHANNEL_COLORS: Record<CMYKChannel, string> = {
+export const CHANNEL_COLORS: Record<CMYWChannel, string> = {
   cyan:    '#00FFFF',
   magenta: '#FF00FF',
   yellow:  '#FFFF00',
-  key:     '#333333',
   white:   '#FFFFFF',
 };
 
@@ -111,7 +114,7 @@ export interface WorkerRequest {
   stlPositions?: Float32Array;
   stlIndices?: Uint32Array;
   // Multi-STL pack encoding (only used when mode === 'encode-stl-pack')
-  stlPack?: Record<CMYKChannel, { positions: Float32Array; indices: Uint32Array }>;
+  stlPack?: Record<CMYWChannel, { positions: Float32Array; indices: Uint32Array }>;
 }
 
 export type WorkerResponse =
