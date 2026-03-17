@@ -5,6 +5,7 @@
   "start_url": "/LithoApp/",
   "scope": "/LithoApp/",
   "display": "standalone",
+  "display_override": ["standalone"],
   "orientation": "any",
   "theme_color": "#050505",
   "background_color": "#050505",

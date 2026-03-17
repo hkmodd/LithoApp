@@ -68,7 +68,7 @@ export default function MobileLayout({
   // ─── PHASE A: Onboarding (no image loaded) ─────────────────────────
   if (!hasImage) {
     return (
-      <div className="fixed inset-0 bg-[#050505] text-white overflow-hidden font-sans flex flex-col">
+      <div className="fixed inset-0 bg-[#050505] text-white overflow-hidden font-sans flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/png, image/jpeg" className="hidden" />
 
         {/* Full-screen tappable upload area */}
@@ -249,7 +249,7 @@ export default function MobileLayout({
         )}
 
         {/* Compact branding (top-left) */}
-        <div className="absolute top-2 left-2 z-10">
+        <div className="absolute left-2 z-10" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}>
           <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl px-2 py-1.5 flex items-center gap-1.5 shadow-xl">
             <div className="bg-[#2563EB] p-1 rounded-lg">
               <Box className="w-3 h-3 text-white" />
@@ -264,7 +264,8 @@ export default function MobileLayout({
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="absolute top-2 right-2 z-10 flex gap-1"
+              className="absolute right-2 z-10 flex gap-1"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
             >
               {/* Undo / Redo */}
               <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
