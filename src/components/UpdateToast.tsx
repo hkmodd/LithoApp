@@ -1,15 +1,25 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RefreshCw, X } from 'lucide-react';
 import { useUpdateCheck } from '../hooks/useUpdateCheck';
 import { useTranslation } from '../i18n';
+import { heavy } from '../lib/haptics';
 
 /**
  * Non-invasive toast that appears when a new service worker is detected.
  * Shows a "New version available" message with an update button.
+ *
+ * On mobile it sits above the MobileNavBar (bottom-24);
+ * on desktop it sits near the bottom of the screen (bottom-6).
  */
 export default function UpdateToast() {
   const { updateReady, applyUpdate, dismissUpdate } = useUpdateCheck();
   const { t } = useTranslation();
+
+  // Haptic pulse when the update toast appears
+  useEffect(() => {
+    if (updateReady) heavy();
+  }, [updateReady]);
 
   return (
     <AnimatePresence>
@@ -19,7 +29,7 @@ export default function UpdateToast() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 40, scale: 0.95 }}
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999]
+          className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[9999]
                      bg-black/70 backdrop-blur-2xl border border-white/10
                      rounded-2xl px-5 py-3.5 shadow-2xl shadow-black/50
                      flex items-center gap-4 max-w-[90vw]"

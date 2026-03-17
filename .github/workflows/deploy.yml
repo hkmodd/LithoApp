@@ -69,6 +69,10 @@ jobs:
         env:
           VITE_APP_VERSION: ${{ github.sha }}
 
+      # Stamp SW_VERSION so browsers detect a new service worker on every deploy
+      - name: Stamp SW version
+        run: sed -i "s/__SW_VERSION__/${{ github.sha }}/" dist/sw.js
+
       # --- Deploy ---
       - name: Setup Pages
         uses: actions/configure-pages@v5
