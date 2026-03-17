@@ -274,6 +274,9 @@ export default function App() {
   // ── Auto-save to IndexedDB when params/mode/image change (debounced 2s) ──
   useEffect(() => {
     const unsub = useAppStore.subscribe((state, prevState) => {
+      // Skip changes caused by the initial IDB restore
+      if (!useProjectStore.getState().initialLoadDone) return;
+
       const changed =
         state.lithoParams !== prevState.lithoParams ||
         state.mode !== prevState.mode ||

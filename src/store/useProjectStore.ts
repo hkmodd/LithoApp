@@ -55,6 +55,8 @@ export interface ProjectSlot {
   mode: AppMode;
   /** Approximate size of the full project data in bytes */
   sizeBytes: number;
+  /** Short fingerprint of imageSrc for deduplication */
+  imageFingerprint?: string;
 }
 
 interface ProjectState {
@@ -122,6 +124,12 @@ const THUMBNAIL_QUALITY = 0.6;
 /** Generate a short unique ID based on timestamp + random suffix */
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/** Generate a fingerprint for deduplication (first 200 chars of imageSrc) */
+function getImageFingerprint(imageSrc: string | null): string {
+  if (!imageSrc) return '';
+  return imageSrc.slice(0, 200);
 }
 
 /** Generate a friendly project name from the current date/time */
@@ -371,13 +379,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     // Don't save empty projects (no image)
     if (!project.imageSrc) return;
 
-    const id = generateId();
-    const projectName = name || generateName();
+    const fingerprint = getImageFingerprint(project.imageSrc);
     const thumbnail = await generateThumbnail(project.imageSrc);
     const jsonStr = JSON.stringify(project);
     const sizeBytes = new Blob([jsonStr]).size;
 
-    // Store full project data in IndexedDB
+    // Check for existing slot with same image (dedup)
+    const existing = get().projectHistory.find(
+      (s) => s.imageFingerprint && s.imageFingerprint === fingerprint
+    );
+
+    if (existing) {
+      // Update existing slot in-place
+      try {
+        await idbSet(IDB_PREFIX + existing.id, jsonStr);
+      } catch (e) {
+        console.warn('[LithoApp] Failed to update history slot:', e);
+        return;
+      }
+      const updated: ProjectSlot = {
+        ...existing,
+        thumbnail,
+        savedAt: project.savedAt,
+        mode: project.mode,
+        sizeBytes,
+      };
+      const history = get().projectHistory.map((s) =>
+        s.id === existing.id ? updated : s
+      );
+      persistHistoryIndex(history);
+      set({ projectHistory: history });
+      return;
+    }
+
+    // Create new slot
+    const id = generateId();
+    const projectName = name || generateName();
+
     try {
       await idbSet(IDB_PREFIX + id, jsonStr);
     } catch (e) {
@@ -392,9 +430,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       savedAt: project.savedAt,
       mode: project.mode,
       sizeBytes,
+      imageFingerprint: fingerprint,
     };
 
-    // Append to history and evict if over budget
     let history = [...get().projectHistory, slot];
     history = await evictIfNeeded(history);
 
