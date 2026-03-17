@@ -1,5 +1,6 @@
 // LithoApp Service Worker — Cache-first for static assets, network-first for HTML
-const CACHE_NAME = 'lithoapp-v1';
+// IMPORTANT: Bump version whenever WASM or major assets change to purge stale cache
+const CACHE_NAME = 'lithoapp-v2';
 const STATIC_ASSETS = [
   '/',
   '/icon-192.png',
@@ -34,7 +35,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets (JS, CSS, WASM, images)
+  // Never cache WASM files — they change with Rust rebuilds and must always be fresh
+  if (request.url.endsWith('.wasm')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // Cache-first for static assets (JS, CSS, images)
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -43,7 +50,6 @@ self.addEventListener('fetch', (event) => {
           if (response.ok && (
             request.url.endsWith('.js') ||
             request.url.endsWith('.css') ||
-            request.url.endsWith('.wasm') ||
             request.url.endsWith('.png')
           )) {
             const clone = response.clone();

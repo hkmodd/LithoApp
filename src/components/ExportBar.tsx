@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Palette, Download, FileBox, Check, Box, Triangle } from 'lucide-react';
+import { Palette, Download, FileBox, Check, Box, Triangle, Archive } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { LithoParams } from '../store/useAppStore';
+import type { CMYKChannel, ColorMeshSet } from '../workers/types';
+import { COLOR_CHANNELS } from '../workers/types';
 import { encodeBinarySTL } from '../utils/stlEncoder';
 import { encodeOBJ } from '../utils/objEncoder';
 import { generateColorProfile } from '../utils/colorProfile';
@@ -36,7 +38,7 @@ function useCountUp(target: number, duration = 600) {
       }
     };
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => { cancelAnimationFrame(rafRef.current); fromRef.current = target; };
   }, [target, duration]);
 
   return value;
@@ -46,12 +48,19 @@ function useCountUp(target: number, duration = 600) {
 type DownloadState = 'idle' | 'downloading' | 'done';
 
 export default function ExportBar() {
-  const { meshData, imageSrc, lithoParams, isProcessing, mode } = useAppStore();
+  // Individual selectors — no re-render on unrelated store changes (e.g. progress)
+  const meshData = useAppStore(s => s.meshData);
+  const imageSrc = useAppStore(s => s.imageSrc);
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const isProcessing = useAppStore(s => s.isProcessing);
+  const mode = useAppStore(s => s.mode);
+  const colorMeshSet = useAppStore(s => s.colorMeshSet);
   const { t } = useTranslation();
 
   const [stlState, setStlState] = useState<DownloadState>('idle');
   const [objState, setObjState] = useState<DownloadState>('idle');
   const [colorState, setColorState] = useState<DownloadState>('idle');
+  const [zipState, setZipState] = useState<DownloadState>('idle');
 
   const triangleCount = meshData?.stats.triangles ?? 0;
   const animatedTriangles = useCountUp(triangleCount);
@@ -66,7 +75,8 @@ export default function ExportBar() {
     a.href = url;
     a.download = filename;
     a.click();
-    URL.revokeObjectURL(url);
+    // Defer revocation so the browser has time to start the download
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }, []);
 
   const handleExportSTL = useCallback(async () => {
@@ -135,6 +145,44 @@ export default function ExportBar() {
     }
   }, [imageSrc, lithoParams]);
 
+  /* ─── Export All Plates (ZIP) ─────────────────────────────── */
+  const handleExportZip = useCallback(() => {
+    const cms = useAppStore.getState().colorMeshSet;
+    const worker = useAppStore.getState().meshWorker;
+    if (!worker || !cms) return;
+
+    setZipState('downloading');
+
+    // Build stlPack: extract positions & indices from each channel
+    const stlPack: Record<CMYKChannel, { positions: Float32Array; indices: Uint32Array }> =
+      {} as Record<CMYKChannel, { positions: Float32Array; indices: Uint32Array }>;
+    for (const ch of COLOR_CHANNELS) {
+      stlPack[ch] = { positions: cms[ch].positions, indices: cms[ch].indices };
+    }
+
+    const packId = Date.now();
+    const handler = (e: MessageEvent) => {
+      if (e.data.type === 'stl-pack-complete' && e.data.id === packId) {
+        worker.removeEventListener('message', handler);
+        const blob = new Blob([e.data.zipBuffer], { type: 'application/zip' });
+        triggerDownload(blob, 'color_litho_plates.zip');
+        setZipState('done');
+        setTimeout(() => setZipState('idle'), 2000);
+      }
+    };
+    worker.addEventListener('message', handler);
+    worker.postMessage({
+      id: packId,
+      mode: 'encode-stl-pack',
+      stlPack,
+      // Required by WorkerRequest shape but unused
+      imageData: new ImageData(1, 1),
+      width: 1,
+      height: 1,
+      params: {} as LithoParams,
+    });
+  }, [triggerDownload]);
+
   /* ─── button icon resolver ───────────────────────────────── */
   function stateIcon(state: DownloadState, fallback: React.ReactNode) {
     if (state === 'downloading') return <Download className="w-4 h-4 animate-bounce" />;
@@ -166,7 +214,7 @@ export default function ExportBar() {
 
       {/* ─── Export Buttons ────────────────────────────────── */}
       <div className="export-actions">
-        {mode === 'lithophane' && (
+        {mode !== 'color-litho' && (
           <button
             onClick={handleExportColorProfile}
             disabled={disabled}
@@ -175,6 +223,19 @@ export default function ExportBar() {
           >
             {stateIcon(colorState, <Palette className="w-4 h-4" />)}
             <span className="export-btn-label">{t('export.colorMirrored')}</span>
+          </button>
+        )}
+
+        {/* ─── ZIP Export (Color Litho only) ────────────────── */}
+        {mode === 'color-litho' && colorMeshSet && (
+          <button
+            onClick={handleExportZip}
+            disabled={disabled}
+            className="export-btn export-btn-ghost"
+            title={t('color.exportAll')}
+          >
+            {stateIcon(zipState, <Archive className="w-4 h-4" />)}
+            <span className="export-btn-label">{t('color.exportAll')}</span>
           </button>
         )}
 

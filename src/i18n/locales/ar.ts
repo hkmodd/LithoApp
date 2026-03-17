@@ -101,6 +101,26 @@ const ar: Record<TranslationKey, string> = {
   'preset.nightLight': 'Night Light',
   'preset.inverted': 'Inverted',
   'preset.bold': 'Bold',
+
+  // Color Litho mode
+  'mode.colorLitho': 'Color Litho',
+  'tab.color': 'Color',
+  'color.title': 'CMYK+W Channels',
+  'color.info': 'Separates image into CMYK+W channels for multi-color 3D printing.',
+  'color.channel': 'Active Channel',
+  'color.composite': 'Composite',
+  'color.cyan': 'Cyan',
+  'color.magenta': 'Magenta',
+  'color.yellow': 'Yellow',
+  'color.black': 'Black (K)',
+  'color.white': 'White',
+  'color.channelStats': 'Channel Stats',
+  'color.vertices': 'Vertices',
+  'color.exportAll': 'Export All Plates (ZIP)',
+  'color.exportChannel': 'Export Channel STL',
+  'color.registrationPins': 'Registration Pins',
+  'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
+  'color.plateGap': 'Gap Between Plates',
 };
 
 export default ar;

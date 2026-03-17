@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer } from 'lucide-react';
 import LithoPreview from './LithoPreview';
+import ErrorBoundary from './ErrorBoundary';
 import ImageTab from './tabs/ImageTab';
+import ColorLithoTab from './tabs/ColorLithoTab';
 import GeometryTab from './tabs/GeometryTab';
 import FrameTab from './tabs/FrameTab';
 import ExportBar from './ExportBar';
@@ -13,6 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
 import { useHistoryStore } from '../store/useHistoryStore';
 import { useTranslation } from '../i18n';
+import type { CMYKChannel, ColorChannel } from '../workers/types';
 
 interface MobileLayoutProps {
   wireframe: boolean;
@@ -40,13 +43,27 @@ export default function MobileLayout({
   isDragging, handleDragOver, handleDragLeave, handleDrop,
   fileInputRef, handleImageUpload,
 }: MobileLayoutProps) {
-  const { imageSrc, imageData, meshData, isProcessing, progress, mode, setMode, resetLithoParams, updateLithoParams } = useAppStore();
+  const { imageSrc, imageData, meshData, colorMeshSet, activeColorChannel, lithoParams, isProcessing, progress, mode, setMode, resetLithoParams, updateLithoParams } = useAppStore();
   const canUndo = useHistoryStore((s) => s.canUndo);
   const canRedo = useHistoryStore((s) => s.canRedo);
   const { t } = useTranslation();
   const [mobileTab, setMobileTab] = useState<MobileTab>('image');
 
   const hasImage = !!imageData;
+
+  // ── Derive preview mesh (Bug 2 fix: match desktop channel switching) ──
+  const previewMesh = useMemo(() => {
+    if (mode === 'color-litho' && colorMeshSet) {
+      if (activeColorChannel === 'composite') {
+        return colorMeshSet.white; // composite uses white channel
+      }
+      const engineKey: CMYKChannel = activeColorChannel === 'black' ? 'key' : activeColorChannel as CMYKChannel;
+      return colorMeshSet[engineKey] ?? colorMeshSet.white;
+    }
+    return meshData;
+  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+
+  const hasThickness = !!(previewMesh?.thickness);
 
   // ─── PHASE A: Onboarding (no image loaded) ─────────────────────────
   if (!hasImage) {
@@ -60,13 +77,13 @@ export default function MobileLayout({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className="flex-1 flex flex-col items-center justify-center gap-8 active:bg-white/[0.02] transition-colors"
+          className="flex-1 flex flex-col items-center justify-center gap-8 active:bg-white/[0.02] transition-colors duration-75"
         >
           {/* Logo */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="flex items-center gap-3"
           >
             <div className="bg-[#2563EB] p-2.5 rounded-2xl shadow-lg shadow-[#2563EB]/20">
@@ -82,7 +99,7 @@ export default function MobileLayout({
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
+            transition={{ delay: 0.15, duration: 0.25 }}
             className="flex flex-col items-center gap-4"
           >
             <motion.div
@@ -95,7 +112,7 @@ export default function MobileLayout({
               }}
               transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               className={cn(
-                "w-20 h-20 rounded-full flex items-center justify-center border transition-all",
+                "w-20 h-20 rounded-full flex items-center justify-center border transition-colors duration-75",
                 isDragging
                   ? "border-[#2563EB] bg-[#2563EB]/20"
                   : "border-white/15 bg-white/5"
@@ -128,7 +145,7 @@ export default function MobileLayout({
                   <span className="text-[9px] font-mono uppercase tracking-wider text-gray-400 block mb-1 truncate">{progress.message}</span>
                   <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#2563EB] transition-all duration-300 ease-out"
+                      className="h-full bg-[#2563EB] transition-all duration-150 ease-out"
                       style={{ width: `${progress.percent}%` }}
                     />
                   </div>
@@ -142,7 +159,7 @@ export default function MobileLayout({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.4 }}
+          transition={{ delay: 0.2, duration: 0.2 }}
           className="px-5 pb-6 space-y-3"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}
         >
@@ -151,7 +168,7 @@ export default function MobileLayout({
             <button
               onClick={(e) => { e.stopPropagation(); setMode('lithophane'); }}
               className={cn(
-                "flex-1 py-2.5 text-xs font-medium rounded-lg transition-all",
+                "flex-1 py-2.5 text-xs font-medium rounded-lg transition-colors duration-75",
                 mode === 'lithophane' ? "bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20" : "text-gray-400"
               )}
             >
@@ -160,11 +177,20 @@ export default function MobileLayout({
             <button
               onClick={(e) => { e.stopPropagation(); setMode('extrusion'); }}
               className={cn(
-                "flex-1 py-2.5 text-xs font-medium rounded-lg transition-all",
+                "flex-1 py-2.5 text-xs font-medium rounded-lg transition-colors duration-75",
                 mode === 'extrusion' ? "bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20" : "text-gray-400"
               )}
             >
               {t('mode.extrusion')}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setMode('color-litho'); }}
+              className={cn(
+                "flex-1 py-2.5 text-xs font-medium rounded-lg transition-colors duration-75",
+                mode === 'color-litho' ? "bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20" : "text-gray-400"
+              )}
+            >
+              {t('mode.colorLitho')}
             </button>
           </div>
           <div className="flex justify-center">
@@ -189,20 +215,24 @@ export default function MobileLayout({
         }
       >
         {/* 3D Canvas */}
-        {meshData ? (
-          <LithoPreview
-            positions={meshData.positions}
-            indices={meshData.indices}
-            normals={meshData.normals || null}
-            uvs={meshData.uvs || null}
-            thickness={meshData.thickness || null}
-            wireframe={wireframe}
-            simulateLight={simulateLight}
-            textureUrl={imageSrc}
-            showTexture={showTexture}
-            showHeatmap={showHeatmap}
-            isMobile={true}
-          />
+        {previewMesh ? (
+          <ErrorBoundary region="3D Preview">
+            <LithoPreview
+              positions={previewMesh.positions}
+              indices={previewMesh.indices}
+              normals={previewMesh.normals || null}
+              uvs={previewMesh.uvs || null}
+              thickness={previewMesh.thickness || null}
+              wireframe={wireframe}
+              simulateLight={simulateLight}
+              textureUrl={imageSrc}
+              showTexture={showTexture}
+              showHeatmap={showHeatmap}
+              minThickness={lithoParams.baseThickness}
+              maxThickness={lithoParams.maxThickness}
+              isMobile={true}
+            />
+          </ErrorBoundary>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-[#0a0a0a] to-[#050505]">
             <motion.div
@@ -230,7 +260,7 @@ export default function MobileLayout({
 
         {/* Viewport controls (top-right) */}
         <AnimatePresence>
-          {meshData && (
+          {previewMesh && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -241,14 +271,16 @@ export default function MobileLayout({
                 <button
                   onClick={() => { const r = useHistoryStore.getState().undo(); if (r) updateLithoParams({ ...r, _skipHistory: true }); }}
                   disabled={!canUndo}
-                  className={cn("p-1.5 rounded-lg transition-all", canUndo ? "text-gray-300 active:bg-white/10" : "text-gray-600")}
+                  className={cn("p-1.5 rounded-lg transition-colors duration-75", canUndo ? "text-gray-300 active:bg-white/10" : "text-gray-600")}
+                  aria-label="Undo"
                 >
                   <Undo2 className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => { const r = useHistoryStore.getState().redo(); if (r) updateLithoParams({ ...r, _skipHistory: true }); }}
                   disabled={!canRedo}
-                  className={cn("p-1.5 rounded-lg transition-all", canRedo ? "text-gray-300 active:bg-white/10" : "text-gray-600")}
+                  className={cn("p-1.5 rounded-lg transition-colors duration-75", canRedo ? "text-gray-300 active:bg-white/10" : "text-gray-600")}
+                  aria-label="Redo"
                 >
                   <Redo2 className="w-3.5 h-3.5" />
                 </button>
@@ -257,27 +289,40 @@ export default function MobileLayout({
               <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
               <button
                 onClick={() => setSimulateLight(!simulateLight)}
-                className={cn("p-1.5 rounded-lg transition-all", simulateLight ? "bg-white/10 text-yellow-400" : "text-gray-400")}
+                className={cn("p-1.5 rounded-lg transition-colors duration-75", simulateLight ? "bg-white/10 text-yellow-400" : "text-gray-400")}
+                aria-label={simulateLight ? 'Disable backlight' : 'Enable backlight'}
+                aria-pressed={simulateLight}
               >
                 <Lightbulb className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setWireframe(!wireframe)}
-                className={cn("p-1.5 rounded-lg transition-all", wireframe ? "bg-white/10 text-[#2563EB]" : "text-gray-400")}
+                className={cn("p-1.5 rounded-lg transition-colors duration-75", wireframe ? "bg-white/10 text-[#2563EB]" : "text-gray-400")}
+                aria-label={wireframe ? 'Disable wireframe' : 'Enable wireframe'}
+                aria-pressed={wireframe}
               >
                 <Layers className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowTexture(!showTexture)}
-                className={cn("p-1.5 rounded-lg transition-all", showTexture ? "bg-white/10 text-emerald-400" : "text-gray-400")}
+                className={cn("p-1.5 rounded-lg transition-colors duration-75", showTexture ? "bg-white/10 text-emerald-400" : "text-gray-400")}
                 title={t('viewport.colorMap')}
+                aria-label={t('viewport.colorMap')}
+                aria-pressed={showTexture}
               >
                 <Palette className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowHeatmap(!showHeatmap)}
-                className={cn("p-1.5 rounded-lg transition-all", showHeatmap ? "bg-white/10 text-orange-400" : "text-gray-400")}
+                disabled={!hasThickness}
+                className={cn(
+                  "p-1.5 rounded-lg transition-colors duration-75",
+                  !hasThickness ? "text-gray-700 cursor-not-allowed" :
+                  showHeatmap ? "bg-white/10 text-orange-400" : "text-gray-400"
+                )}
                 title={t('viewport.heatmap')}
+                aria-label={t('viewport.heatmap')}
+                aria-pressed={showHeatmap}
               >
                 <Thermometer className="w-3.5 h-3.5" />
               </button>
@@ -293,13 +338,13 @@ export default function MobileLayout({
       {/* =========== BOTTOM: Tab Content (hidden in view mode) =========== */}
       {mobileTab !== 'view' && (
       <div className="flex-1 min-h-0 bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/8 overflow-y-auto custom-scrollbar">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           <motion.div
             key={mobileTab}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.06 }}
             className="p-4 space-y-5"
           >
             {/* ── Image Tab ── */}
@@ -312,7 +357,7 @@ export default function MobileLayout({
                     <button
                       onClick={() => setMode('lithophane')}
                       className={cn(
-                        "flex-1 py-2 text-xs font-medium rounded-lg transition-all",
+                        "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
                         mode === 'lithophane' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400"
                       )}
                     >
@@ -321,11 +366,20 @@ export default function MobileLayout({
                     <button
                       onClick={() => setMode('extrusion')}
                       className={cn(
-                        "flex-1 py-2 text-xs font-medium rounded-lg transition-all",
+                        "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
                         mode === 'extrusion' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400"
                       )}
                     >
                       {t('mode.extrusion')}
+                    </button>
+                    <button
+                      onClick={() => setMode('color-litho')}
+                      className={cn(
+                        "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
+                        mode === 'color-litho' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400"
+                      )}
+                    >
+                      {t('mode.colorLitho')}
                     </button>
                   </div>
                 </div>
@@ -338,7 +392,7 @@ export default function MobileLayout({
                     <div className="absolute inset-0 flex items-center justify-center">
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl flex items-center gap-2 active:scale-95 transition-transform"
+                        className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl flex items-center gap-2 active:scale-95 transition-transform duration-75"
                       >
                         <Camera className="w-3.5 h-3.5" />
                         {t('upload.replace')}
@@ -347,8 +401,8 @@ export default function MobileLayout({
                   </div>
                 </div>
 
-                {/* Image processing controls */}
-                <ImageTab />
+                {/* Image processing controls (or ColorLithoTab for color-litho mode) */}
+                {mode === 'color-litho' ? <ColorLithoTab /> : <ImageTab />}
               </>
             )}
 
@@ -360,7 +414,7 @@ export default function MobileLayout({
                   <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-gray-500">{t('tab.geometry')} · {t('tab.frame')}</h3>
                   <div className="flex items-center gap-1.5">
                     <LanguageSelector />
-                    <button onClick={resetLithoParams} className="text-[9px] font-mono uppercase text-gray-500 px-2 py-1 rounded-full bg-white/5 active:bg-white/10 transition-colors">
+                    <button onClick={resetLithoParams} className="text-[9px] font-mono uppercase text-gray-500 px-2 py-1 rounded-full bg-white/5 active:bg-white/10 transition-colors duration-75">
                       {t('app.reset')}
                     </button>
                   </div>
@@ -387,7 +441,7 @@ export default function MobileLayout({
       <MobileNavBar
         activeTab={mobileTab}
         onTabChange={setMobileTab}
-        hasMesh={!!meshData}
+        hasMesh={!!previewMesh}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid } from '@react-three/drei';
-import { useMemo, useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import TranslucentMaterial from './TranslucentMaterial';
 import HeatmapMaterial from './HeatmapMaterial';
@@ -31,25 +31,49 @@ export default function LithoPreview({
   maxThickness = 3.0,
 }: LithoPreviewProps) {
 
-  // Build geometry with optional UVs and thickness attribute
-  const geometry = useMemo(() => {
-    if (!positions || !indices) return null;
-    const geo = new THREE.BufferGeometry();
+  // Persistent geometry ref — we update attributes in-place instead of
+  // recreating the BufferGeometry each time. This avoids GC pressure and
+  // lets Three.js lazily re-upload data on the next render frame.
+  const geoRef = useRef<THREE.BufferGeometry>(new THREE.BufferGeometry());
+
+  useEffect(() => {
+    if (!positions || !indices) return;
+    const geo = geoRef.current;
+
+    // Update (or create) each attribute in-place
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setIndex(new THREE.BufferAttribute(indices, 1));
+
     if (normals) {
       geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
     } else {
+      geo.deleteAttribute('normal');
       geo.computeVertexNormals();
     }
+
     if (uvs) {
       geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    } else {
+      geo.deleteAttribute('uv');
     }
+
     if (thickness) {
       geo.setAttribute('aThickness', new THREE.BufferAttribute(thickness, 1));
+    } else {
+      geo.deleteAttribute('aThickness');
     }
-    return geo;
+
+    // Signal Three.js to re-upload on next frame
+    geo.attributes.position.needsUpdate = true;
+    if (geo.index) geo.index.needsUpdate = true;
+    if (geo.attributes.normal) (geo.attributes.normal as THREE.BufferAttribute).needsUpdate = true;
+    if (geo.attributes.uv) (geo.attributes.uv as THREE.BufferAttribute).needsUpdate = true;
+    if (geo.attributes.aThickness) (geo.attributes.aThickness as THREE.BufferAttribute).needsUpdate = true;
+    geo.computeBoundingSphere();
   }, [positions, indices, normals, uvs, thickness]);
+
+  // Derive whether geometry has data (for conditional render below)
+  const geometry = positions && indices ? geoRef.current : null;
 
   // Load texture from source image — use ref to avoid stale closure on dispose
   const [texture, setTexture] = useState<THREE.Texture | null>(null);

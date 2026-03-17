@@ -113,6 +113,26 @@ const en = {
   'preset.nightLight': 'Night Light',
   'preset.inverted': 'Inverted',
   'preset.bold': 'Bold',
+
+  // Color lithophane
+  'mode.colorLitho': 'Color Litho',
+  'tab.color': 'Color',
+  'color.title': 'CMYK+W Channels',
+  'color.info': 'Generates 5 separate plates (C, M, Y, K, W) for multi-color printing on transparent filament.',
+  'color.channel': 'Preview Channel',
+  'color.composite': 'Composite',
+  'color.cyan': 'Cyan',
+  'color.magenta': 'Magenta',
+  'color.yellow': 'Yellow',
+  'color.black': 'Black (K)',
+  'color.white': 'White',
+  'color.channelStats': 'Channel Stats',
+  'color.vertices': 'Vertices',
+  'color.exportAll': 'Export All Plates (ZIP)',
+  'color.exportChannel': 'Export Channel STL',
+  'color.registrationPins': 'Registration Pins',
+  'color.registrationHint': 'Add alignment pins/holes for precise layer stacking.',
+  'color.plateGap': 'Gap Between Plates',
 } as const;
 
 export type TranslationKey = keyof typeof en;

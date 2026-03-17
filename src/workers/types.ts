@@ -1,7 +1,13 @@
 // Core engine interface for different generation modes
 
-export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter';
+export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter' | 'color-litho';
 export type LithoShape = 'flat' | 'arc' | 'cylinder' | 'sphere' | 'heart' | 'lampshade' | 'vase' | 'dome';
+
+/** Physical CMYK+W plate identifiers used by the engine */
+export type CMYKChannel = 'cyan' | 'magenta' | 'yellow' | 'key' | 'white';
+
+/** UI-facing channel selector: includes composite preview + 'black' as alias for 'key' */
+export type ColorChannel = 'composite' | 'cyan' | 'magenta' | 'yellow' | 'black' | 'white';
 
 /** Non-destructive image edits applied before engine processing */
 export interface ImageEdits {
@@ -22,6 +28,19 @@ export const defaultImageEdits: ImageEdits = {
   exposure: 0.0,
 };
 
+/** Color lithophane specific parameters */
+export interface ColorLithoParams {
+  coloredResolution: number;  // mm per pixel for C/M/Y layers (default 0.8)
+  layerHeight: number;        // mm, print layer height (default 0.1)
+  firstLayerHeight: number;   // mm, first layer height (default 0.2)
+}
+
+export const defaultColorLithoParams: ColorLithoParams = {
+  coloredResolution: 0.8,
+  layerHeight: 0.1,
+  firstLayerHeight: 0.2,
+};
+
 export interface LithoParams {
   shape: LithoShape;
   resolution: number;
@@ -39,6 +58,8 @@ export interface LithoParams {
   invert: boolean;
   hanger: boolean;
   threshold: number;
+  /** Color lithophane settings (used when mode === 'color-litho') */
+  colorLithoParams?: ColorLithoParams;
 }
 
 export interface MeshStats {
@@ -58,9 +79,30 @@ export interface MeshEngineResult {
   stats: MeshStats;
 }
 
+/** Result of CMYK color lithophane generation: one mesh per channel */
+export interface ColorMeshSet {
+  cyan: MeshEngineResult;
+  magenta: MeshEngineResult;
+  yellow: MeshEngineResult;
+  key: MeshEngineResult;
+  white: MeshEngineResult;
+}
+
+/** All engine channel names in order */
+export const COLOR_CHANNELS: CMYKChannel[] = ['cyan', 'magenta', 'yellow', 'key', 'white'];
+
+/** Display colors for each engine channel (used in 3D preview tinting) */
+export const CHANNEL_COLORS: Record<CMYKChannel, string> = {
+  cyan:    '#00FFFF',
+  magenta: '#FF00FF',
+  yellow:  '#FFFF00',
+  key:     '#333333',
+  white:   '#FFFFFF',
+};
+
 export interface WorkerRequest {
   id: number; // generation counter for race-condition prevention
-  mode: AppMode | 'encode-stl';
+  mode: AppMode | 'encode-stl' | 'encode-stl-pack';
   imageData: ImageData;
   width: number;
   height: number;
@@ -68,12 +110,16 @@ export interface WorkerRequest {
   // STL encoding fields (only used when mode === 'encode-stl')
   stlPositions?: Float32Array;
   stlIndices?: Uint32Array;
+  // Multi-STL pack encoding (only used when mode === 'encode-stl-pack')
+  stlPack?: Record<CMYKChannel, { positions: Float32Array; indices: Uint32Array }>;
 }
 
 export type WorkerResponse =
   | { type: 'progress'; id: number; progress: number; message: string }
   | { type: 'complete'; id: number; positions: Float32Array; indices: Uint32Array; normals: Float32Array; uvs?: Float32Array; thickness?: Float32Array; stats: MeshStats }
+  | { type: 'color-complete'; id: number; colorMeshSet: ColorMeshSet }
   | { type: 'stl-complete'; id: number; stlBuffer: Uint8Array }
+  | { type: 'stl-pack-complete'; id: number; zipBuffer: Uint8Array }
   | { type: 'error'; id: number; message: string };
 
 export type ProgressCallback = (progress: number, message: string) => void;

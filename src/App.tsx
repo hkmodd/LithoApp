@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef, useCallback, startTransition } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
 import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen, Thermometer } from 'lucide-react';
 import LithoPreview from './components/LithoPreview';
+import ErrorBoundary from './components/ErrorBoundary';
 import ViewportOverlay from './components/ViewportOverlay';
 import MobileLayout from './components/MobileLayout';
 import BootSplash from './components/BootSplash';
 import ImageTab from './components/tabs/ImageTab';
 import GeometryTab from './components/tabs/GeometryTab';
 import FrameTab from './components/tabs/FrameTab';
+import ColorLithoTab from './components/tabs/ColorLithoTab';
 import ExportBar from './components/ExportBar';
 import ImageEditor from './components/ImageEditor';
 import LanguageSelector from './components/LanguageSelector';
@@ -15,36 +17,74 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from './store/useAppStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { useProjectStore } from './store/useProjectStore';
-import type { LithoParams } from './workers/types';
+import type { LithoParams, CMYKChannel } from './workers/types';
 import { useTranslation } from './i18n';
 import { applyEdits, hasEdits } from './lib/imageProcessor';
 
+// ── Self-contained progress indicator — owns its own store subscription ──
+// Prevents progress ticks (4/sec) from re-rendering the entire App tree.
+function ProgressIndicator() {
+  const isProcessing = useAppStore(s => s.isProcessing);
+  const progress = useAppStore(s => s.progress);
+  const { t } = useTranslation();
+
+  return (
+    <AnimatePresence>
+      {isProcessing && progress && (
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="bg-black/40 backdrop-blur-xl border border-[#2563EB]/30 rounded-xl p-3 shadow-2xl pointer-events-auto flex items-center gap-3"
+        >
+          <Activity className="w-4 h-4 text-[#2563EB] animate-pulse" />
+          <div className="flex flex-col w-32">
+            <span className="text-[9px] font-mono uppercase tracking-wider text-gray-400 mb-1">{progress.message}</span>
+            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#2563EB] transition-all duration-150 ease-out"
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function App() {
-  const {
-    mode,
-    setMode,
-    imageSrc,
-    imageData,
-    setImage,
-    isProcessing,
-    progress,
-    setProcessing,
-    setRegenerating,
-    setProgress,
-    meshData,
-    setMeshData,
-    lithoParams,
-    updateLithoParams,
-    resetLithoParams,
-    originalImage,
-    setOriginalImage,
-    imageEdits,
-    resetImageEdits
-  } = useAppStore();
+  // ── Selective store subscriptions: each field is an independent selector ──
+  // This prevents unrelated state changes (e.g. progress ticks) from
+  // re-rendering the entire App tree.
+  const mode = useAppStore(s => s.mode);
+  const imageSrc = useAppStore(s => s.imageSrc);
+  const imageData = useAppStore(s => s.imageData);
+  const meshData = useAppStore(s => s.meshData);
+  const colorMeshSet = useAppStore(s => s.colorMeshSet);
+  const activeColorChannel = useAppStore(s => s.activeColorChannel);
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const originalImage = useAppStore(s => s.originalImage);
+  const imageEdits = useAppStore(s => s.imageEdits);
+
+  // Stable setter refs — these never change identity, so they don't
+  // cause re-renders. Using individual selectors is fine since Zustand
+  // returns stable function references.
+  const setMode = useAppStore(s => s.setMode);
+  const setImage = useAppStore(s => s.setImage);
+  const setProcessing = useAppStore(s => s.setProcessing);
+  const setRegenerating = useAppStore(s => s.setRegenerating);
+  const setProgress = useAppStore(s => s.setProgress);
+  const setMeshData = useAppStore(s => s.setMeshData);
+  const setColorMeshSet = useAppStore(s => s.setColorMeshSet);
+  const updateLithoParams = useAppStore(s => s.updateLithoParams);
+  const resetLithoParams = useAppStore(s => s.resetLithoParams);
+  const setOriginalImage = useAppStore(s => s.setOriginalImage);
+  const resetImageEdits = useAppStore(s => s.resetImageEdits);
   const { t } = useTranslation();
 
   
-  const [activeTab, setActiveTab] = useState<'image' | 'geometry' | 'frame'>('image');
+  const [activeTab, setActiveTab] = useState<'image' | 'geometry' | 'frame' | 'color'>('image');
   const [isControlsOpen, setIsControlsOpen] = useState(true);
   
   const [wireframe, setWireframe] = useState(false);
@@ -52,6 +92,18 @@ export default function App() {
   const [showTexture, setShowTexture] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [booted, setBooted] = useState(false);
+
+  // ── Derive preview mesh: either the active color channel or the main meshData ──
+  const previewMesh = useMemo(() => {
+    if (mode === 'color-litho' && colorMeshSet && activeColorChannel !== 'composite') {
+      const engineKey: CMYKChannel = activeColorChannel === 'black' ? 'key' : activeColorChannel as CMYKChannel;
+      const channelMesh = colorMeshSet[engineKey];
+      if (channelMesh) return channelMesh;
+    }
+    return meshData;
+  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+
+  const hasThickness = !!(previewMesh?.thickness);
   
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,17 +170,42 @@ export default function App() {
             thickness: e.data.thickness,
             stats: e.data.stats
           });
+          setColorMeshSet(null); // clear color mesh when switching modes
+        });
+        setProcessing(false);
+        setRegenerating(false);
+        setProgress(null);
+      } else if (e.data.type === 'color-complete') {
+        // Color lithophane: 5 channel meshes received
+        startTransition(() => {
+          setColorMeshSet(e.data.colorMeshSet);
+          // Also set the white channel as the "primary" mesh for stats display
+          const whiteMesh = e.data.colorMeshSet.white;
+          setMeshData({
+            positions: whiteMesh.positions,
+            indices: whiteMesh.indices,
+            normals: whiteMesh.normals,
+            uvs: whiteMesh.uvs,
+            thickness: whiteMesh.thickness,
+            stats: whiteMesh.stats
+          });
         });
         setProcessing(false);
         setRegenerating(false);
         setProgress(null);
       }
     };
+    workerRef.current.onerror = (evt) => {
+      console.error('[LithoApp] Worker uncaught error:', evt.message);
+      setProcessing(false);
+      setRegenerating(false);
+      setProgress(null);
+    };
     return () => {
       workerRef.current?.terminate();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [setMeshData, setProcessing, setRegenerating, setProgress]);
+  }, [setMeshData, setColorMeshSet, setProcessing, setRegenerating, setProgress]);
 
   // ── History: initialize + subscribe to lithoParams changes ─────────
   useEffect(() => {
@@ -173,6 +250,16 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [updateLithoParams]);
 
+  // ── Auto-switch tab on mode change ──────────────────────────────
+  useEffect(() => {
+    if (mode === 'color-litho') {
+      setActiveTab('color');
+    } else if (activeTab === 'color') {
+      // Leaving color-litho mode — switch to 'image' since 'color' tab doesn't exist
+      setActiveTab('image');
+    }
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Project restore from localStorage on mount ──────────────────
   useEffect(() => {
     useProjectStore.getState().loadFromLocal();
@@ -203,31 +290,6 @@ export default function App() {
     };
   }, []);
 
-  // ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ────────────────────
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isModifier = e.ctrlKey || e.metaKey;
-      if (!isModifier || e.key.toLowerCase() !== 'z') return;
-
-      // Don't fire if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      e.preventDefault();
-
-      if (e.shiftKey) {
-        // Redo
-        const restored = useHistoryStore.getState().redo();
-        if (restored) updateLithoParams({ ...restored, _skipHistory: true });
-      } else {
-        // Undo
-        const restored = useHistoryStore.getState().undo();
-        if (restored) updateLithoParams({ ...restored, _skipHistory: true });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [updateLithoParams]);
 
   const processImage = useCallback((imgData: { data: ImageData, width: number, height: number }, params: LithoParams) => {
     if (!workerRef.current) return;
@@ -322,7 +384,6 @@ export default function App() {
   };
 
 
-
   // Mobile: use dedicated layout
   if (isMobile) {
     return (
@@ -390,20 +451,22 @@ export default function App() {
             </motion.div>
           </div>
         ) : (
-          <LithoPreview 
-            positions={meshData?.positions || null} 
-            indices={meshData?.indices || null} 
-            normals={meshData?.normals || null}
-            uvs={meshData?.uvs || null}
-            thickness={meshData?.thickness || null}
-            wireframe={wireframe} 
-            simulateLight={simulateLight}
-            textureUrl={imageSrc}
-            showTexture={showTexture}
-            showHeatmap={showHeatmap}
-            minThickness={lithoParams.baseThickness}
-            maxThickness={lithoParams.maxThickness}
-          />
+          <ErrorBoundary region="3D Preview">
+            <LithoPreview 
+              positions={previewMesh?.positions || null} 
+              indices={previewMesh?.indices || null} 
+              normals={previewMesh?.normals || null}
+              uvs={previewMesh?.uvs || null}
+              thickness={previewMesh?.thickness || null}
+              wireframe={wireframe} 
+              simulateLight={simulateLight}
+              textureUrl={imageSrc}
+              showTexture={showTexture}
+              showHeatmap={showHeatmap}
+              minThickness={lithoParams.baseThickness}
+              maxThickness={lithoParams.maxThickness}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Regeneration overlay — blurs viewport only, controls stay interactive */}
@@ -414,7 +477,10 @@ export default function App() {
       <motion.div 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="absolute top-0 left-0 right-0 z-20 p-4 md:p-6 pointer-events-none"
+        className={cn(
+          "absolute top-0 left-0 z-20 p-4 md:p-6 pointer-events-none transition-[right] duration-300 ease-out",
+          (!isMobile && isControlsOpen) ? 'right-[400px]' : 'right-0'
+        )}
       >
         <div className="max-w-7xl mx-auto flex justify-between items-start">
           <div className="flex flex-col gap-2">
@@ -428,36 +494,20 @@ export default function App() {
               </div>
             </div>
 
-            {/* Progress Indicator */}
-            <AnimatePresence>
-              {isProcessing && progress && (
-                <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-black/40 backdrop-blur-xl border border-[#2563EB]/30 rounded-xl p-3 shadow-2xl pointer-events-auto flex items-center gap-3"
-                >
-                  <Activity className="w-4 h-4 text-[#2563EB] animate-pulse" />
-                  <div className="flex flex-col w-32">
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-gray-400 mb-1">{progress.message}</span>
-                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-[#2563EB] transition-all duration-300 ease-out"
-                        style={{ width: `${progress.percent}%` }}
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Progress Indicator — self-contained, doesn't re-render App */}
+            <ProgressIndicator />
           </div>
 
-          {/* Viewport Controls */}
+          {/* Viewport Controls — bounce to center when desktop sidebar opens */}
           <AnimatePresence>
             {meshData && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                transition={{ type: 'spring', stiffness: 300, damping: 22, mass: 0.8 }}
                 className="flex gap-2"
               >
                 {/* Undo / Redo */}
@@ -469,12 +519,13 @@ export default function App() {
                     }}
                     disabled={!canUndo}
                     className={cn(
-                      "p-2.5 rounded-xl transition-all",
+                      'p-2.5 rounded-xl transition-colors duration-75',
                       canUndo
                         ? "text-gray-300 hover:text-white hover:bg-white/10"
                         : "text-gray-600 cursor-not-allowed"
                     )}
                     title="Undo (Ctrl+Z)"
+                    aria-label="Undo (Ctrl+Z)"
                   >
                     <Undo2 className="w-4 h-4" />
                   </button>
@@ -485,12 +536,13 @@ export default function App() {
                     }}
                     disabled={!canRedo}
                     className={cn(
-                      "p-2.5 rounded-xl transition-all",
+                      'p-2.5 rounded-xl transition-colors duration-75',
                       canRedo
                         ? "text-gray-300 hover:text-white hover:bg-white/10"
                         : "text-gray-600 cursor-not-allowed"
                     )}
                     title="Redo (Ctrl+Shift+Z)"
+                    aria-label="Redo (Ctrl+Shift+Z)"
                   >
                     <Redo2 className="w-4 h-4" />
                   </button>
@@ -500,27 +552,43 @@ export default function App() {
                 <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
                   <button 
                     onClick={() => setSimulateLight(!simulateLight)}
-                    className={cn("p-2.5 rounded-xl transition-all", simulateLight ? "bg-white/10 text-yellow-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    className={cn("p-2.5 rounded-xl transition-colors duration-75", simulateLight ? "bg-white/10 text-yellow-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    aria-label={simulateLight ? 'Disable backlight simulation' : 'Enable backlight simulation'}
+                    aria-pressed={simulateLight}
                   >
                     <Lightbulb className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => setWireframe(!wireframe)}
-                    className={cn("p-2.5 rounded-xl transition-all", wireframe ? "bg-white/10 text-[#2563EB] shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    className={cn("p-2.5 rounded-xl transition-colors duration-75", wireframe ? "bg-white/10 text-[#2563EB] shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    aria-label={wireframe ? 'Disable wireframe view' : 'Enable wireframe view'}
+                    aria-pressed={wireframe}
                   >
                     <Layers className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => setShowTexture(!showTexture)}
-                    className={cn("p-2.5 rounded-xl transition-all", showTexture ? "bg-white/10 text-emerald-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                    className={cn("p-2.5 rounded-xl transition-colors duration-75", showTexture ? "bg-white/10 text-emerald-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
                     title={t('viewport.colorMap')}
+                    aria-label={t('viewport.colorMap')}
+                    aria-pressed={showTexture}
                   >
                     <Palette className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={() => setShowHeatmap(!showHeatmap)}
-                    className={cn("p-2.5 rounded-xl transition-all", showHeatmap ? "bg-white/10 text-orange-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
-                    title={t('viewport.heatmap')}
+                    onClick={() => hasThickness && setShowHeatmap(!showHeatmap)}
+                    disabled={!hasThickness}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-colors duration-75",
+                      !hasThickness
+                        ? "text-gray-600 cursor-not-allowed opacity-40"
+                        : showHeatmap
+                          ? "bg-white/10 text-orange-400 shadow-inner"
+                          : "text-gray-400 hover:text-white hover:bg-white/5"
+                    )}
+                    title={hasThickness ? t('viewport.heatmap') : 'No thickness data'}
+                    aria-label={t('viewport.heatmap')}
+                    aria-pressed={showHeatmap}
                   >
                     <Thermometer className="w-4 h-4" />
                   </button>
@@ -531,46 +599,21 @@ export default function App() {
         </div>
       </motion.div>
 
-      {/* Mobile Bottom Sheet / Desktop Side Panel */}
+      {/* Desktop Side Panel */}
       <motion.div 
-        className="absolute bottom-0 left-0 right-0 md:top-0 md:bottom-0 md:left-auto md:right-0 md:w-[400px] z-30 flex flex-col pointer-events-none"
+        className="absolute top-0 bottom-0 right-0 w-[400px] z-30 flex flex-col pointer-events-none"
         initial={false}
-        animate={
-          isMobile 
-            ? { y: isControlsOpen ? 0 : 'calc(100% - 80px)', x: 0 } 
-            : { x: isControlsOpen ? 0 : '100%', y: 0 }
-        }
+        animate={{ x: isControlsOpen ? 0 : '100%', y: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        drag={isMobile ? "y" : false}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(e, { offset, velocity }) => {
-          if (isMobile) {
-            if (offset.y > 50 || velocity.y > 200) {
-              setIsControlsOpen(false);
-            } else if (offset.y < -50 || velocity.y < -200) {
-              setIsControlsOpen(true);
-            }
-          }
-        }}
       >
-        <div className="bg-[#0a0a0a]/80 backdrop-blur-3xl border-t md:border-t-0 md:border-l border-white/10 rounded-t-3xl md:rounded-none flex flex-col h-[65vh] md:h-full shadow-[0_-20px_40px_rgba(0,0,0,0.5)] pointer-events-auto">
-          
-          {/* Drag Handle (Mobile) */}
-          <div 
-            className="w-full h-12 flex flex-col items-center justify-center md:hidden cursor-grab active:cursor-grabbing gap-1"
-            onClick={() => setIsControlsOpen(!isControlsOpen)}
-          >
-            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
-            <span className="text-[9px] font-mono uppercase tracking-widest text-white/30">
-              {isControlsOpen ? t('app.swipeDown') : t('app.swipeUp')}
-            </span>
-          </div>
+        <div className="bg-[#0a0a0a]/80 backdrop-blur-3xl border-l border-white/10 flex flex-col h-full shadow-[0_-20px_40px_rgba(0,0,0,0.5)] pointer-events-auto">
 
           {/* Desktop Toggle Button */}
           <button 
             className="hidden md:flex absolute top-1/2 -left-12 w-12 h-24 bg-[#0a0a0a]/80 backdrop-blur-3xl border-y border-l border-white/10 rounded-l-2xl items-center justify-center cursor-pointer hover:bg-white/10 transition-colors pointer-events-auto"
             onClick={() => setIsControlsOpen(!isControlsOpen)}
+            aria-label={isControlsOpen ? 'Collapse controls panel' : 'Expand controls panel'}
+            aria-expanded={isControlsOpen}
           >
             <div className="w-1.5 h-12 bg-white/20 rounded-full" />
           </button>
@@ -583,6 +626,7 @@ export default function App() {
               <button
                 onClick={saveToLocal}
                 title="Save project (localStorage)"
+                aria-label="Save project"
                 className={cn(
                   'p-1.5 rounded-full transition-colors',
                   isDirty
@@ -595,6 +639,7 @@ export default function App() {
               <button
                 onClick={exportToFile}
                 title="Export project (.json)"
+                aria-label="Export project as JSON file"
                 className="p-1.5 rounded-full text-gray-600 bg-white/5 hover:bg-white/10 hover:text-gray-400 transition-colors"
               >
                 <Download size={13} />
@@ -602,6 +647,7 @@ export default function App() {
               <button
                 onClick={() => projectImportRef.current?.click()}
                 title="Import project (.json)"
+                aria-label="Import project from JSON file"
                 className="p-1.5 rounded-full text-gray-600 bg-white/5 hover:bg-white/10 hover:text-gray-400 transition-colors"
               >
                 <FolderOpen size={13} />
@@ -637,7 +683,7 @@ export default function App() {
                   <button
                     onClick={() => setMode('lithophane')}
                     className={cn(
-                      "flex-1 py-2 text-xs font-medium rounded-lg transition-all",
+                      "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75", 
                       mode === 'lithophane' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
                     )}
                   >
@@ -646,11 +692,20 @@ export default function App() {
                   <button
                     onClick={() => setMode('extrusion')}
                     className={cn(
-                      "flex-1 py-2 text-xs font-medium rounded-lg transition-all",
+                      "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
                       mode === 'extrusion' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
                     )}
                   >
                     {t('mode.extrusion')}
+                  </button>
+                  <button
+                    onClick={() => setMode('color-litho')}
+                    className={cn(
+                      "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
+                      mode === 'color-litho' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
+                    )}
+                  >
+                    {t('mode.colorLitho')}
                   </button>
                 </div>
               </div>
@@ -668,7 +723,7 @@ export default function App() {
                       <div className="absolute inset-0 flex items-center justify-center">
                         <button 
                           onClick={() => fileInputRef.current?.click()}
-                          className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl transition-all flex items-center gap-2"
+                          className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl transition-colors duration-75 flex items-center gap-2"
                         >
                           <Upload className="w-4 h-4" />
                           {t('upload.replace')}
@@ -704,12 +759,15 @@ export default function App() {
               {/* Tabs */}
               <div className={cn("space-y-6 transition-opacity duration-500", !imageData && "opacity-20 pointer-events-none")}>
                 <div className="flex p-1 bg-white/5 rounded-xl">
-                  {(['image', 'geometry', 'frame'] as const).map((tab) => (
+                  {(mode === 'color-litho'
+                    ? (['color', 'geometry', 'frame'] as const)
+                    : (['image', 'geometry', 'frame'] as const)
+                  ).map((tab) => (
                     <button 
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       className={cn(
-                        "flex-1 py-2 text-[10px] font-mono uppercase tracking-wider rounded-lg transition-all", 
+                        "flex-1 py-2 text-[10px] font-mono uppercase tracking-wider rounded-lg transition-colors duration-75", 
                         activeTab === tab ? "bg-white/10 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
                       )}
                     >
@@ -719,7 +777,10 @@ export default function App() {
                 </div>
 
                 {/* Tab Content: Image */}
-                {activeTab === 'image' && <ImageTab />}
+                {activeTab === 'image' && mode !== 'color-litho' && <ImageTab />}
+
+                {/* Tab Content: Color */}
+                {activeTab === 'color' && mode === 'color-litho' && <ColorLithoTab />}
 
                 {/* Tab Content: Geometry */}
                 {activeTab === 'geometry' && <GeometryTab />}

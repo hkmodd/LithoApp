@@ -103,6 +103,26 @@ const it: Record<TranslationKey, string> = {
   'preset.nightLight': 'Lampada Not.',
   'preset.inverted': 'Invertito',
   'preset.bold': 'Forte',
+
+  // Color lithophane
+  'mode.colorLitho': 'Litofania Colore',
+  'tab.color': 'Colore',
+  'color.title': 'Canali CMYK+W',
+  'color.info': 'Genera 5 piastre separate (C, M, Y, K, W) per stampa multi-colore su filamento trasparente.',
+  'color.channel': 'Canale anteprima',
+  'color.composite': 'Composito',
+  'color.cyan': 'Ciano',
+  'color.magenta': 'Magenta',
+  'color.yellow': 'Giallo',
+  'color.black': 'Nero (K)',
+  'color.white': 'Bianco',
+  'color.channelStats': 'Statistiche Canale',
+  'color.vertices': 'Vertici',
+  'color.exportAll': 'Esporta tutte le piastre (ZIP)',
+  'color.exportChannel': 'Esporta canale STL',
+  'color.registrationPins': 'Pin di allineamento',
+  'color.registrationHint': 'Aggiunge pin/fori per un preciso allineamento dei livelli.',
+  'color.plateGap': 'Distanza tra le piastre',
 };
 
 export default it;

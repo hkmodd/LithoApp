@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Eye, ImageIcon, Hexagon, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../i18n';
@@ -18,7 +19,7 @@ const tabs: { id: MobileTab; icon: typeof ImageIcon; labelKey: string }[] = [
   { id: 'export', icon: Download, labelKey: 'nav.export' },
 ];
 
-export default function MobileNavBar({ activeTab, onTabChange, hasMesh }: MobileNavBarProps) {
+export default memo(function MobileNavBar({ activeTab, onTabChange, hasMesh }: MobileNavBarProps) {
   const { t } = useTranslation();
 
   return (
@@ -36,7 +37,7 @@ export default function MobileNavBar({ activeTab, onTabChange, hasMesh }: Mobile
             key={id}
             onClick={() => !isDisabled && onTabChange(id)}
             className={cn(
-              "flex-1 flex flex-col items-center gap-1 py-3 transition-all relative",
+              "flex-1 flex flex-col items-center gap-1 py-3 transition-colors duration-75 relative",
               isActive ? "text-[#2563EB]" : "text-gray-500",
               isDisabled && "opacity-30 pointer-events-none"
             )}
@@ -45,7 +46,7 @@ export default function MobileNavBar({ activeTab, onTabChange, hasMesh }: Mobile
               <motion.div
                 layoutId="mobileNavIndicator"
                 className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#2563EB] rounded-full"
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                transition={{ type: "spring", stiffness: 700, damping: 35 }}
               />
             )}
             <Icon className="w-5 h-5" strokeWidth={isActive ? 2.2 : 1.5} />
@@ -61,3 +62,4 @@ export default function MobileNavBar({ activeTab, onTabChange, hasMesh }: Mobile
     </nav>
   );
 }
+);

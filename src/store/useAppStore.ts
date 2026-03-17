@@ -1,18 +1,20 @@
 import { create } from 'zustand';
-import type { AppMode, LithoParams, MeshStats, ImageEdits } from '../workers/types';
-import { defaultImageEdits } from '../workers/types';
+import type { AppMode, LithoParams, MeshStats, ImageEdits, ColorMeshSet, ColorChannel } from '../workers/types';
+import { defaultImageEdits, defaultColorLithoParams } from '../workers/types';
 import { detectLocale } from '../i18n';
 import type { SupportedLocale } from '../i18n';
 
 // Re-export types so existing imports from the store still work
-export type { AppMode, LithoParams, LithoShape, ImageEdits } from '../workers/types';
-export { defaultImageEdits } from '../workers/types';
+export type { AppMode, LithoParams, LithoShape, ImageEdits, ColorMeshSet, ColorChannel } from '../workers/types';
+export { defaultImageEdits, defaultColorLithoParams } from '../workers/types';
 
 // Persist / restore language from localStorage
 const LANG_KEY = 'lithoapp-lang';
 function getInitialLanguage(): SupportedLocale {
-  const saved = localStorage.getItem(LANG_KEY);
-  if (saved) return saved as SupportedLocale;
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved) return saved as SupportedLocale;
+  } catch { /* Safari private mode or quota error */ }
   return detectLocale();
 }
 
@@ -47,9 +49,15 @@ interface AppState {
   setRegenerating: (isRegenerating: boolean) => void;
   setProgress: (progress: { percent: number; message: string } | null) => void;
 
-  // Output Mesh
+  // Output Mesh (single mesh modes: lithophane, extrusion)
   meshData: { positions: Float32Array; indices: Uint32Array; normals?: Float32Array; uvs?: Float32Array; thickness?: Float32Array; stats: MeshStats } | null;
   setMeshData: (data: { positions: Float32Array; indices: Uint32Array; normals?: Float32Array; uvs?: Float32Array; thickness?: Float32Array; stats: MeshStats } | null) => void;
+
+  // Color Lithophane Output (5 channel meshes)
+  colorMeshSet: ColorMeshSet | null;
+  setColorMeshSet: (data: ColorMeshSet | null) => void;
+  activeColorChannel: ColorChannel;
+  setActiveColorChannel: (ch: ColorChannel) => void;
 
   // Lithophane Parameters
   lithoParams: LithoParams;
@@ -85,11 +93,15 @@ const defaultLithoParams: LithoParams = {
   invert: false,
   hanger: false,
   threshold: 128,
+  colorLithoParams: { ...defaultColorLithoParams },
 };
 
 export const useAppStore = create<AppState>((set) => ({
   language: getInitialLanguage(),
-  setLanguage: (lang) => { localStorage.setItem(LANG_KEY, lang); set({ language: lang }); },
+  setLanguage: (lang) => {
+    try { localStorage.setItem(LANG_KEY, lang); } catch { /* ignore */ }
+    set({ language: lang });
+  },
 
   mode: 'lithophane',
   setMode: (mode) => set({ mode }),
@@ -114,6 +126,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   meshData: null,
   setMeshData: (data) => set({ meshData: data }),
+
+  colorMeshSet: null,
+  setColorMeshSet: (data) => set({ colorMeshSet: data }),
+  activeColorChannel: 'white',
+  setActiveColorChannel: (ch) => set({ activeColorChannel: ch }),
 
   lithoParams: defaultLithoParams,
   updateLithoParams: (params) => {

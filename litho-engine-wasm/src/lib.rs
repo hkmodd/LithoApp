@@ -8,9 +8,14 @@ mod stl;
 
 use wasm_bindgen::prelude::*;
 use js_sys::Function;
-use std::f64::consts::PI;
 
-use types::{GridInfo, LithoParams, LithoShape};
+use types::{BBox, GridInfo, LithoParams, LithoShape};
+
+/// One-time init: install panic hook for better error messages in DevTools.
+#[wasm_bindgen(start)]
+pub fn init() {
+    console_error_panic_hook::set_once();
+}
 
 /// Main WASM entry point — called from the JS web worker.
 ///
@@ -22,7 +27,7 @@ use types::{GridInfo, LithoParams, LithoShape};
 /// * `progress_fn` – JS callback `(progress: number, message: string) => void`
 ///
 /// # Returns
-/// A JS object `{ positions: Float32Array, indices: Uint32Array, uvs: Float32Array, stats: {...} }`
+/// A JS object `{ positions: Float32Array, indices: Uint32Array, uvs: Float32Array, normals: Float32Array, stats: {...} }`
 #[wasm_bindgen]
 pub fn generate_lithophane(
     pixels: &[u8],
@@ -58,7 +63,7 @@ pub fn generate_lithophane(
         heightmap::apply_sharpening(&mut heights, &gi, &params, &mask, &is_frame);
     }
 
-    // Step 4: Smoothing
+    // Step 4: Smoothing (separable 2-pass)
     let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(40), &JsValue::from("Applying Laplacian smoothing..."));
     heightmap::apply_smoothing(&mut heights, &gi, &params, &mask, &is_frame, progress_fn);
 
@@ -66,17 +71,19 @@ pub fn generate_lithophane(
     let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(60), &JsValue::from("Generating 3D geometry..."));
 
     let hanger_vert_count = hanger::hanger_vertex_count(&params);
-    let vr = mesh::generate_vertices(&heights, &gi, &params, &mask, hanger_vert_count);
-    let mut positions = vr.positions;
-    let mut uvs = vr.uvs;
+    let total_verts = gi.grid_w * gi.grid_h * 2 + hanger_vert_count;
+    let mut positions = vec![0.0f32; total_verts * 3];
+    let mut uvs = vec![0.0f32; total_verts * 2];
+
+    let mesh_result =
+        mesh::generate_mesh_positions(&heights, &gi, &params, &mut positions, &mut uvs);
+    let max_top_x = mesh_result.max_top_x;
+    let max_top_y = mesh_result.max_top_y;
+    let max_top_z = mesh_result.max_top_z;
+    let effective_angle_rad = mesh_result.effective_angle_rad;
 
     // Step 6: Indices
     let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(80), &JsValue::from("Tessellating surfaces..."));
-    let effective_angle_rad = match params.shape {
-        LithoShape::Cylinder | LithoShape::Dome | LithoShape::Lampshade | LithoShape::Vase => 2.0 * PI,
-        LithoShape::Arc => params.curve_angle * PI / 180.0,
-        _ => 0.0,
-    };
     let mut idx = indices::generate_indices(&gi, &params, &mask, effective_angle_rad);
 
     // Step 7: Hanger
@@ -88,9 +95,9 @@ pub fn generate_lithophane(
             &mut uvs,
             hanger_offset,
             &params,
-            vr.max_top_x,
-            vr.max_top_y,
-            vr.max_top_z,
+            max_top_x,
+            max_top_y,
+            max_top_z,
             gi.physical_width,
             gi.physical_height,
             effective_angle_rad,
@@ -103,54 +110,43 @@ pub fn generate_lithophane(
     let normals = normals::compute_vertex_normals(&positions, &idx);
 
     // Step 8: Bounding box
+    // For non-heart shapes, bbox was already computed inline during mesh generation.
+    // For heart shapes, we need to re-scan only masked-in vertices.
     let _ = progress_fn.call2(&JsValue::NULL, &JsValue::from(95), &JsValue::from("Computing bounding box..."));
 
-    let mut min_x = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
-    let mut min_z = f32::INFINITY;
-    let mut max_z = f32::NEG_INFINITY;
-
-    let total_grid = gi.grid_w * gi.grid_h;
-    for i in (0..positions.len()).step_by(3) {
-        let vert_idx = i / 3;
-        // For heart, skip masked-out vertices
-        if params.shape == LithoShape::Heart {
-            if vert_idx < total_grid {
-                let gx = vert_idx % gi.grid_w;
-                let gy = vert_idx / gi.grid_w;
+    let (min_x, max_x, min_y, max_y, min_z, max_z) = if params.shape == LithoShape::Heart {
+        // Heart: re-compute bbox excluding masked-out vertices
+        let total_grid = gi.grid_w * gi.grid_h;
+        let mut hbbox = BBox::empty();
+        for (vi, chunk) in positions.chunks_exact(3).enumerate() {
+            if vi < total_grid {
+                let gx = vi % gi.grid_w;
+                let gy = vi / gi.grid_w;
                 if mask[gy * gi.grid_w + gx] == 0 {
                     continue;
                 }
-            } else if vert_idx < total_grid * 2 {
-                let bi = vert_idx - total_grid;
+            } else if vi < total_grid * 2 {
+                let bi = vi - total_grid;
                 let gx = bi % gi.grid_w;
                 let gy = bi / gi.grid_w;
                 if mask[gy * gi.grid_w + gx] == 0 {
                     continue;
                 }
             }
+            hbbox.update(chunk[0], chunk[1], chunk[2]);
         }
-        let x = positions[i];
-        let y = positions[i + 1];
-        let z = positions[i + 2];
-        if x < min_x { min_x = x; }
-        if x > max_x { max_x = x; }
-        if y < min_y { min_y = y; }
-        if y > max_y { max_y = y; }
-        if z < min_z { min_z = z; }
-        if z > max_z { max_z = z; }
-    }
+        (hbbox.min_x, hbbox.max_x, hbbox.min_y, hbbox.max_y, hbbox.min_z, hbbox.max_z)
+    } else {
+        // All other shapes: use bbox computed inline during mesh generation
+        let b = &mesh_result.bbox;
+        (b.min_x, b.max_x, b.min_y, b.max_y, b.min_z, b.max_z)
+    };
 
     // Build result as JS object
-    let num_vertices = gi.grid_w * gi.grid_h * 2 + hanger_vert_count;
     let result = js_sys::Object::new();
 
-    // Convert to typed arrays
     let pos_arr = js_sys::Float32Array::from(positions.as_slice());
-    let idx_u32: Vec<u32> = idx;
-    let idx_arr = js_sys::Uint32Array::from(idx_u32.as_slice());
+    let idx_arr = js_sys::Uint32Array::from(idx.as_slice());
     let uv_arr = js_sys::Float32Array::from(uvs.as_slice());
     let nrm_arr = js_sys::Float32Array::from(normals.as_slice());
 
@@ -161,8 +157,8 @@ pub fn generate_lithophane(
 
     // Stats
     let stats = js_sys::Object::new();
-    js_sys::Reflect::set(&stats, &"vertices".into(), &JsValue::from(num_vertices as u32))?;
-    js_sys::Reflect::set(&stats, &"triangles".into(), &JsValue::from((idx_u32.len() / 3) as u32))?;
+    js_sys::Reflect::set(&stats, &"vertices".into(), &JsValue::from(total_verts as u32))?;
+    js_sys::Reflect::set(&stats, &"triangles".into(), &JsValue::from((idx.len() / 3) as u32))?;
     js_sys::Reflect::set(&stats, &"width".into(), &JsValue::from(gi.grid_w as u32))?;
     js_sys::Reflect::set(&stats, &"height".into(), &JsValue::from(gi.grid_h as u32))?;
 

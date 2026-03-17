@@ -1,5 +1,5 @@
 use crate::types::{GridInfo, LithoParams, LithoShape};
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 /// Check whether the quad at (x, y) is "solid" (should produce triangles).
 fn is_solid(
@@ -31,7 +31,6 @@ fn is_solid(
 
     // Heart shape: all 4 corners of the quad must be inside the mask
     if mask.len() == gw * gi.grid_h {
-        // mask is populated (heart shape)
         mask[check_y * gw + check_x] == 1
             && mask[check_y * gw + check_x + 1] == 1
             && mask[(check_y + 1) * gw + check_x] == 1
@@ -47,7 +46,7 @@ pub fn generate_indices(
     gi: &GridInfo,
     params: &LithoParams,
     mask: &[u8],
-    effective_angle_rad: f64,
+    effective_angle_rad: f32,
 ) -> Vec<u32> {
     let gw = gi.grid_w;
     let gh = gi.grid_h;
@@ -60,14 +59,12 @@ pub fn generate_indices(
         || params.shape == LithoShape::Vase
         || effective_angle_rad >= 359.9 * PI / 180.0;
 
-    // Use the heart mask only if shape is heart; otherwise pass empty slice
     let effective_mask: &[u8] = if params.shape == LithoShape::Heart {
         mask
     } else {
         &[]
     };
 
-    // Pre-estimate: worst case ~12 indices per grid cell
     let est_capacity = (gw - 1) * (gh - 1) * 12 + (gw + gh) * 12;
     let mut indices: Vec<u32> = Vec::with_capacity(est_capacity);
 
@@ -166,4 +163,73 @@ pub fn generate_indices(
     }
 
     indices
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{GridInfo, LithoParams, LithoShape};
+
+    fn test_params(shape: LithoShape) -> LithoParams {
+        LithoParams {
+            shape,
+            resolution: 10.0,
+            physical_size: 100.0,
+            base_thickness: 0.6,
+            max_thickness: 2.5,
+            border_width: 0.0,
+            frame_thickness: 2.5,
+            base_stand: 0.0,
+            curve_angle: 120.0,
+            smoothing: 0,
+            contrast: 1.0,
+            brightness: 0.0,
+            sharpness: 0.0,
+            invert: false,
+            hanger: false,
+            threshold: 128,
+        }
+    }
+
+    #[test]
+    fn flat_indices_all_in_range() {
+        let params = test_params(LithoShape::Flat);
+        let gi = GridInfo::from_params(10, 10, &params);
+        let total_verts = gi.grid_w * gi.grid_h * 2;
+        let indices = generate_indices(&gi, &params, &[], 120.0 * PI / 180.0);
+        for &i in &indices {
+            assert!((i as usize) < total_verts,
+                "Index {} >= vertex count {}", i, total_verts);
+        }
+    }
+
+    #[test]
+    fn flat_indices_divisible_by_3() {
+        let params = test_params(LithoShape::Flat);
+        let gi = GridInfo::from_params(10, 10, &params);
+        let indices = generate_indices(&gi, &params, &[], 120.0 * PI / 180.0);
+        assert!(indices.len() % 3 == 0, "Index count {} not divisible by 3", indices.len());
+    }
+
+    #[test]
+    fn cylinder_indices_in_range() {
+        let params = test_params(LithoShape::Cylinder);
+        let gi = GridInfo::from_params(10, 10, &params);
+        let total_verts = gi.grid_w * gi.grid_h * 2;
+        let indices = generate_indices(&gi, &params, &[], 2.0 * PI);
+        assert!(!indices.is_empty());
+        for &i in &indices {
+            assert!((i as usize) < total_verts,
+                "Cylinder index {} >= vertex count {}", i, total_verts);
+        }
+    }
+
+    #[test]
+    fn heart_mask_excludes_outside() {
+        let params = test_params(LithoShape::Heart);
+        let gi = GridInfo::from_params(10, 10, &params);
+        let mask = vec![0u8; gi.grid_w * gi.grid_h];
+        let indices = generate_indices(&gi, &params, &mask, 120.0 * PI / 180.0);
+        assert!(indices.is_empty(), "Heart with empty mask should produce no faces");
+    }
 }

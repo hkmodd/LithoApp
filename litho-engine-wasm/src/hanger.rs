@@ -1,5 +1,5 @@
 use crate::types::LithoParams;
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 pub const HANGER_SEGMENTS: usize = 32;
 
@@ -23,19 +23,19 @@ pub fn generate_hanger(
     uvs: &mut [f32],
     hanger_offset: usize,
     params: &LithoParams,
-    max_top_x: f64,
-    max_top_y: f64,
-    max_top_z: f64,
-    physical_width: f64,
-    physical_height: f64,
-    effective_angle_rad: f64,
+    max_top_x: f32,
+    max_top_y: f32,
+    max_top_z: f32,
+    physical_width: f32,
+    physical_height: f32,
+    effective_angle_rad: f32,
 ) -> Vec<u32> {
-    let outer_r = 5.0_f64;
-    let inner_r = 3.0_f64;
+    let outer_r = 5.0_f32;
+    let inner_r = 3.0_f32;
     let thickness = params.frame_thickness;
 
     let cx = max_top_x;
-    let cy = if max_top_y == f64::NEG_INFINITY {
+    let cy = if max_top_y == f32::NEG_INFINITY {
         physical_height / 2.0
     } else {
         max_top_y
@@ -53,37 +53,36 @@ pub fn generate_hanger(
 
     // Write vertices
     for i in 0..HANGER_SEGMENTS {
-        let theta = (i as f64 / HANGER_SEGMENTS as f64) * 2.0 * PI;
-        let cos = theta.cos();
-        let sin = theta.sin();
+        let theta = (i as f32 / HANGER_SEGMENTS as f32) * 2.0 * PI;
+        let (sin_t, cos_t) = theta.sin_cos();
 
         let vi = hanger_offset + i * 4;
 
         // Top outer
-        positions[(vi + 0) * 3] = (cx + outer_r * cos) as f32;
-        positions[(vi + 0) * 3 + 1] = (cy + outer_r * sin) as f32;
-        positions[(vi + 0) * 3 + 2] = (cz + thickness) as f32;
+        positions[(vi + 0) * 3] = cx + outer_r * cos_t;
+        positions[(vi + 0) * 3 + 1] = cy + outer_r * sin_t;
+        positions[(vi + 0) * 3 + 2] = cz + thickness;
         uvs[(vi + 0) * 2] = 0.0;
         uvs[(vi + 0) * 2 + 1] = 0.0;
 
         // Top inner
-        positions[(vi + 1) * 3] = (cx + inner_r * cos) as f32;
-        positions[(vi + 1) * 3 + 1] = (cy + inner_r * sin) as f32;
-        positions[(vi + 1) * 3 + 2] = (cz + thickness) as f32;
+        positions[(vi + 1) * 3] = cx + inner_r * cos_t;
+        positions[(vi + 1) * 3 + 1] = cy + inner_r * sin_t;
+        positions[(vi + 1) * 3 + 2] = cz + thickness;
         uvs[(vi + 1) * 2] = 0.0;
         uvs[(vi + 1) * 2 + 1] = 0.0;
 
         // Bottom outer
-        positions[(vi + 2) * 3] = (cx + outer_r * cos) as f32;
-        positions[(vi + 2) * 3 + 1] = (cy + outer_r * sin) as f32;
-        positions[(vi + 2) * 3 + 2] = cz as f32;
+        positions[(vi + 2) * 3] = cx + outer_r * cos_t;
+        positions[(vi + 2) * 3 + 1] = cy + outer_r * sin_t;
+        positions[(vi + 2) * 3 + 2] = cz;
         uvs[(vi + 2) * 2] = 0.0;
         uvs[(vi + 2) * 2 + 1] = 0.0;
 
         // Bottom inner
-        positions[(vi + 3) * 3] = (cx + inner_r * cos) as f32;
-        positions[(vi + 3) * 3 + 1] = (cy + inner_r * sin) as f32;
-        positions[(vi + 3) * 3 + 2] = cz as f32;
+        positions[(vi + 3) * 3] = cx + inner_r * cos_t;
+        positions[(vi + 3) * 3 + 1] = cy + inner_r * sin_t;
+        positions[(vi + 3) * 3 + 2] = cz;
         uvs[(vi + 3) * 2] = 0.0;
         uvs[(vi + 3) * 2 + 1] = 0.0;
     }
@@ -106,4 +105,58 @@ pub fn generate_hanger(
     }
 
     indices
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{LithoParams, LithoShape};
+
+    fn test_params() -> LithoParams {
+        LithoParams {
+            shape: LithoShape::Flat,
+            resolution: 500.0,
+            physical_size: 100.0,
+            base_thickness: 0.6,
+            max_thickness: 2.5,
+            border_width: 2.0,
+            frame_thickness: 2.5,
+            base_stand: 0.0,
+            curve_angle: 120.0,
+            smoothing: 0,
+            contrast: 1.0,
+            brightness: 0.0,
+            sharpness: 0.0,
+            invert: false,
+            hanger: true,
+            threshold: 128,
+        }
+    }
+
+    #[test]
+    fn hanger_vertex_count_flat() {
+        let params = test_params();
+        assert_eq!(hanger_vertex_count(&params), HANGER_SEGMENTS * 4);
+    }
+
+    #[test]
+    fn hanger_vertex_count_cylinder() {
+        let mut params = test_params();
+        params.shape = LithoShape::Cylinder;
+        assert_eq!(hanger_vertex_count(&params), 0);
+    }
+
+    #[test]
+    fn hanger_generates_correct_index_count() {
+        let params = test_params();
+        let vc = hanger_vertex_count(&params);
+        let total_verts = 200 + vc; // some base + hanger
+        let mut positions = vec![0.0f32; total_verts * 3];
+        let mut uvs = vec![0.0f32; total_verts * 2];
+        let indices = generate_hanger(
+            &mut positions, &mut uvs, 200, &params,
+            0.0, 50.0, 0.0, 100.0, 80.0, 2.094,
+        );
+        assert_eq!(indices.len(), HANGER_SEGMENTS * 24); // 4 faces × 6 indices × 32 segments
+    }
 }

@@ -196,7 +196,7 @@ export default function ImageEditor() {
       onClick={onClick}
       title={label}
       className={cn(
-        "p-2 rounded-lg transition-all text-gray-400 hover:text-white hover:bg-white/10",
+        "p-2 rounded-lg transition-colors duration-75 text-gray-400 hover:text-white hover:bg-white/10",
         active && "text-[#2563EB] bg-[#2563EB]/10 hover:text-[#2563EB]"
       )}
     >
@@ -230,7 +230,7 @@ export default function ImageEditor() {
           <button
             onClick={() => { resetImageEdits(); setIsCropping(false); }}
             title={t('editor.reset')}
-            className="p-2 rounded-lg text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
+            className="p-2 rounded-lg text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10 transition-colors duration-75"
           >
             <RotateCcw className="w-4 h-4" />
           </button>

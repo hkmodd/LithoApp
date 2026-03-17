@@ -100,7 +100,27 @@ const zh: Record<TranslationKey, string> = {
   'preset.dramatic': 'Dramatic',
   'preset.nightLight': 'Night Light',
   'preset.inverted': 'Inverted',
-  'preset.bold': 'Bold',
+  'preset.bold': '粗体',
+
+  // Color Litho 彩色模式
+  'mode.colorLitho': '彩色透光',
+  'tab.color': '颜色',
+  'color.title': 'CMYK+W 通道',
+  'color.info': '将图像分离为CMYK+W通道，用于多色3D打印。',
+  'color.channel': '当前通道',
+  'color.composite': '复合',
+  'color.cyan': '青色',
+  'color.magenta': '品红',
+  'color.yellow': '黄色',
+  'color.black': '黑色 (K)',
+  'color.white': '白色',
+  'color.channelStats': 'Channel Stats',
+  'color.vertices': 'Vertices',
+  'color.exportAll': '导出所有板 (ZIP)',
+  'color.exportChannel': '导出通道 STL',
+  'color.registrationPins': '对齐销',
+  'color.registrationHint': '添加对齐销/孔以精确堆叠层。',
+  'color.plateGap': '板间距',
 };
 
 export default zh;

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from '../i18n';
@@ -6,7 +7,7 @@ import { useTranslation } from '../i18n';
  * Animated frosted-glass overlay shown on the 3D viewport during mesh regeneration.
  * Controls remain fully interactive underneath — only the viewport blurs.
  */
-export default function ViewportOverlay() {
+export default memo(function ViewportOverlay() {
   const isRegenerating = useAppStore((s) => s.isRegenerating);
   const progress = useAppStore((s) => s.progress);
   const { t } = useTranslation();
@@ -18,8 +19,10 @@ export default function ViewportOverlay() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
           className="viewport-overlay"
+          role="status"
+          aria-live="polite"
         >
           {/* Animated rings */}
           <div className="regen-rings">
@@ -35,12 +38,19 @@ export default function ViewportOverlay() {
               {progress?.message || t('app.regenerating' as any) || 'Regenerating…'}
             </span>
             {progress && progress.percent > 0 && (
-              <div className="regen-progress-track">
+              <div
+                className="regen-progress-track"
+                role="progressbar"
+                aria-valuenow={Math.round(progress.percent)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Mesh generation progress"
+              >
                 <motion.div
                   className="regen-progress-fill"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress.percent}%` }}
-                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  transition={{ duration: 0.12, ease: 'easeOut' }}
                 />
               </div>
             )}
@@ -49,4 +59,4 @@ export default function ViewportOverlay() {
       )}
     </AnimatePresence>
   );
-}
+});
