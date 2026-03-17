@@ -266,12 +266,12 @@ export default function App() {
     }
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Project restore from localStorage on mount ──────────────────
+  // ── Project restore from IndexedDB on mount ──────────────────
   useEffect(() => {
     useProjectStore.getState().loadFromLocal();
   }, []);
 
-  // ── Auto-save to localStorage when params/mode/image change (debounced 2s) ──
+  // ── Auto-save to IndexedDB when params/mode/image change (debounced 2s) ──
   useEffect(() => {
     const unsub = useAppStore.subscribe((state, prevState) => {
       const changed =

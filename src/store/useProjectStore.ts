@@ -1,6 +1,6 @@
 /**
- * useProjectStore — auto-save to localStorage + JSON export/import
- *                    + multi-slot project history via IndexedDB.
+ * useProjectStore — auto-save to IndexedDB + JSON export/import
+ *                    + multi-slot project history.
  *
  * What gets saved:
  *   • mode (lithophane | extrusion | color-litho)
@@ -12,7 +12,7 @@
  * Manual save/load via named slots or JSON file download/upload.
  *
  * History gallery:
- *   • Index (ProjectSlot[]) stored in localStorage (lightweight)
+ *   • Index (ProjectSlot[]) stored in localStorage (lightweight metadata)
  *   • Full project data stored in IndexedDB via idb-keyval (large capacity)
  *   • Cache budget ~50 MB, oldest-first eviction
  *   • Auto-snapshot before loading a new image
@@ -64,6 +64,8 @@ interface ProjectState {
   lastSavedAt: string | null;
   /** Whether auto-save is enabled */
   autoSaveEnabled: boolean;
+  /** Whether initial load from IDB has completed */
+  initialLoadDone: boolean;
 
   // ─── History gallery ────────────────────────────────────────────
   /** Metadata for all saved project slots (lightweight) */
@@ -75,12 +77,12 @@ interface ProjectState {
 
   /** Mark project as dirty (modified) */
   markDirty: () => void;
-  /** Save current project to localStorage */
-  saveToLocal: () => void;
-  /** Load project from localStorage (returns true if found) */
-  loadFromLocal: () => boolean;
-  /** Clear saved project from localStorage */
-  clearLocal: () => void;
+  /** Save current project to IndexedDB */
+  saveToLocal: () => Promise<void>;
+  /** Load project from IndexedDB (returns true if found) */
+  loadFromLocal: () => Promise<boolean>;
+  /** Clear saved project from IndexedDB */
+  clearLocal: () => Promise<void>;
   /** Export project as downloadable JSON file */
   exportToFile: () => void;
   /** Import project from a JSON file */
@@ -108,7 +110,7 @@ interface ProjectState {
 
 // ─── Constants ────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'lithoapp-project';
+const CURRENT_PROJECT_IDB_KEY = 'lithoapp-current-project';
 const HISTORY_INDEX_KEY = 'lithoapp-history-index';
 const IDB_PREFIX = 'lithoapp-hist-';
 const MAX_CACHE_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -252,6 +254,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   isDirty: false,
   lastSavedAt: null,
   autoSaveEnabled: true,
+  initialLoadDone: false,
 
   // History gallery
   projectHistory: [],
@@ -261,33 +264,56 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   markDirty: () => set({ isDirty: true }),
 
-  saveToLocal: () => {
+  saveToLocal: async () => {
     try {
       const project = captureProject();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+      await idbSet(CURRENT_PROJECT_IDB_KEY, JSON.stringify(project));
       set({ isDirty: false, lastSavedAt: project.savedAt });
     } catch (e) {
-      // localStorage might be full (especially with large images)
       console.warn('[LithoApp] Failed to save project:', e);
     }
   },
 
-  loadFromLocal: () => {
+  loadFromLocal: async () => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return false;
-      const data = JSON.parse(raw);
-      if (!isValidProject(data)) return false;
-      restoreProject(data);
-      set({ isDirty: false, lastSavedAt: data.savedAt });
-      return true;
+      const raw = await idbGet<string>(CURRENT_PROJECT_IDB_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (isValidProject(data)) {
+          restoreProject(data);
+          set({ isDirty: false, lastSavedAt: data.savedAt, initialLoadDone: true });
+          return true;
+        }
+      }
+
+      // ── Migration: check old localStorage key ──
+      const legacy = localStorage.getItem('lithoapp-project');
+      if (legacy) {
+        const data = JSON.parse(legacy);
+        if (isValidProject(data)) {
+          restoreProject(data);
+          // Migrate to IndexedDB and clean up old key
+          await idbSet(CURRENT_PROJECT_IDB_KEY, legacy);
+          localStorage.removeItem('lithoapp-project');
+          set({ isDirty: false, lastSavedAt: data.savedAt, initialLoadDone: true });
+          return true;
+        }
+      }
+
+      set({ initialLoadDone: true });
+      return false;
     } catch {
+      set({ initialLoadDone: true });
       return false;
     }
   },
 
-  clearLocal: () => {
-    localStorage.removeItem(STORAGE_KEY);
+  clearLocal: async () => {
+    try {
+      await idbDel(CURRENT_PROJECT_IDB_KEY);
+    } catch {
+      // Ignore
+    }
     set({ isDirty: false, lastSavedAt: null });
   },
 
