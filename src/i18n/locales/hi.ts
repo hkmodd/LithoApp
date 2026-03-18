@@ -152,6 +152,13 @@ const hi: Record<TranslationKey, string> = {
   'gallery.rename': 'नाम बदलने के लिए डबल-क्लिक करें',
   'gallery.autoSaved': 'ऑटो-सेव',
   'gallery.recentProjects': 'हाल के प्रोजेक्ट',
+
+  // Settings menu (mobile)
+  'menu.save': 'प्रोजेक्ट सहेजें',
+  'menu.export': 'निर्यात (.json)',
+  'menu.import': 'प्रोजेक्ट आयात करें',
+  'menu.history': 'प्रोजेक्ट इतिहास',
+  'menu.settings': 'सेटिंग्स',
 };
 
 export default hi;

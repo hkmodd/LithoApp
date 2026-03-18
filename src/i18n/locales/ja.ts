@@ -152,6 +152,13 @@ const ja: Record<TranslationKey, string> = {
   'gallery.rename': 'ダブルクリックで名前変更',
   'gallery.autoSaved': '自動保存',
   'gallery.recentProjects': '最近のプロジェクト',
+
+  // Settings menu (mobile)
+  'menu.save': 'プロジェクトを保存',
+  'menu.export': 'エクスポート (.json)',
+  'menu.import': 'プロジェクトをインポート',
+  'menu.history': 'プロジェクト履歴',
+  'menu.settings': '設定',
 };
 
 export default ja;

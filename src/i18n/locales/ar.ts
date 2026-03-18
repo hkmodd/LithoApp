@@ -153,6 +153,13 @@ const ar: Record<TranslationKey, string> = {
   'gallery.rename': 'انقر مرتين لإعادة التسمية',
   'gallery.autoSaved': 'حفظ تلقائي',
   'gallery.recentProjects': 'المشاريع الأخيرة',
+
+  // Settings menu (mobile)
+  'menu.save': 'حفظ المشروع',
+  'menu.export': 'تصدير (.json)',
+  'menu.import': 'استيراد مشروع',
+  'menu.history': 'سجل المشاريع',
+  'menu.settings': 'الإعدادات',
 };
 
 export default ar;

@@ -152,6 +152,13 @@ const ru: Record<TranslationKey, string> = {
   'gallery.rename': 'Двойной клик для переименования',
   'gallery.autoSaved': 'Автосохранение',
   'gallery.recentProjects': 'Последние Проекты',
+
+  // Settings menu (mobile)
+  'menu.save': 'Сохранить проект',
+  'menu.export': 'Экспорт (.json)',
+  'menu.import': 'Импорт проекта',
+  'menu.history': 'История проектов',
+  'menu.settings': 'Настройки',
 };
 
 export default ru;

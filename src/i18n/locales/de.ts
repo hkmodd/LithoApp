@@ -152,6 +152,13 @@ const de: Record<TranslationKey, string> = {
   'gallery.rename': 'Doppelklick zum Umbenennen',
   'gallery.autoSaved': 'Automatisch gespeichert',
   'gallery.recentProjects': 'Letzte Projekte',
+
+  // Settings menu (mobile)
+  'menu.save': 'Projekt speichern',
+  'menu.export': 'Exportieren (.json)',
+  'menu.import': 'Projekt importieren',
+  'menu.history': 'Projektverlauf',
+  'menu.settings': 'Einstellungen',
 };
 
 export default de;

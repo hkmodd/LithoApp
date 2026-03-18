@@ -143,6 +143,13 @@ const pl: Record<TranslationKey, string> = {
   'gallery.rename': 'Kliknij dwukrotnie aby zmienić nazwę',
   'gallery.autoSaved': 'Auto-zapis',
   'gallery.recentProjects': 'Ostatnie Projekty',
+
+  // Settings menu (mobile)
+  'menu.save': 'Zapisz projekt',
+  'menu.export': 'Eksportuj (.json)',
+  'menu.import': 'Importuj projekt',
+  'menu.history': 'Historia projektów',
+  'menu.settings': 'Ustawienia',
 };
 
 export default pl;

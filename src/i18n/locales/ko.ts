@@ -152,6 +152,13 @@ const ko: Record<TranslationKey, string> = {
   'gallery.rename': '더블 클릭하여 이름 변경',
   'gallery.autoSaved': '자동 저장',
   'gallery.recentProjects': '최근 프로젝트',
+
+  // Settings menu (mobile)
+  'menu.save': '프로젝트 저장',
+  'menu.export': '내보내기 (.json)',
+  'menu.import': '프로젝트 가져오기',
+  'menu.history': '프로젝트 기록',
+  'menu.settings': '설정',
 };
 
 export default ko;

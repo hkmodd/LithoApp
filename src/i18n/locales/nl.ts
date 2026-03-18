@@ -143,6 +143,13 @@ const nl: Record<TranslationKey, string> = {
   'gallery.rename': 'Dubbelklik om te hernoemen',
   'gallery.autoSaved': 'Automatisch opgeslagen',
   'gallery.recentProjects': 'Recente Projecten',
+
+  // Settings menu (mobile)
+  'menu.save': 'Project opslaan',
+  'menu.export': 'Exporteren (.json)',
+  'menu.import': 'Project importeren',
+  'menu.history': 'Projectgeschiedenis',
+  'menu.settings': 'Instellingen',
 };
 
 export default nl;

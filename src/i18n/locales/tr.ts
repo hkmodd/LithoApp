@@ -143,6 +143,13 @@ const tr: Record<TranslationKey, string> = {
   'gallery.rename': 'Yeniden adlandırmak için çift tıklayın',
   'gallery.autoSaved': 'Otomatik kaydedildi',
   'gallery.recentProjects': 'Son Projeler',
+
+  // Settings menu (mobile)
+  'menu.save': 'Projeyi Kaydet',
+  'menu.export': 'Dışa Aktar (.json)',
+  'menu.import': 'Proje İçe Aktar',
+  'menu.history': 'Proje Geçmişi',
+  'menu.settings': 'Ayarlar',
 };
 
 export default tr;

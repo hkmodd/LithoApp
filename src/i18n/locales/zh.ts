@@ -153,6 +153,13 @@ const zh: Record<TranslationKey, string> = {
   'gallery.rename': '双击重命名',
   'gallery.autoSaved': '自动保存',
   'gallery.recentProjects': '最近的项目',
+
+  // Settings menu (mobile)
+  'menu.save': '保存项目',
+  'menu.export': '导出 (.json)',
+  'menu.import': '导入项目',
+  'menu.history': '项目历史',
+  'menu.settings': '设置',
 };
 
 export default zh;
