@@ -166,6 +166,13 @@ const en = {
   'gallery.rename': 'Double-click to rename',
   'gallery.autoSaved': 'Auto-saved',
   'gallery.recentProjects': 'Recent Projects',
+
+  // Settings menu (mobile)
+  'menu.save': 'Save Project',
+  'menu.export': 'Export (.json)',
+  'menu.import': 'Import Project',
+  'menu.history': 'Project History',
+  'menu.settings': 'Settings',
 } as const;
 
 export type TranslationKey = keyof typeof en;
