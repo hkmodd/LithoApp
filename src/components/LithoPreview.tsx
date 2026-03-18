@@ -175,7 +175,15 @@ export default function LithoPreview({
         position={[0, -0.01, 0]} 
       />
       
-      <OrbitControls makeDefault maxPolarAngle={Math.PI / 2 + 0.1} />
+      <OrbitControls
+        makeDefault
+        maxPolarAngle={Math.PI / 2 + 0.1}
+        enableDamping
+        dampingFactor={0.12}
+        minDistance={10}
+        maxDistance={500}
+        touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
+      />
     </Canvas>
   );
 }

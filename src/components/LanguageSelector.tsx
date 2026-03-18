@@ -5,7 +5,7 @@ import { useAppStore } from '../store/useAppStore';
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useTranslation } from '../i18n';
 import type { SupportedLocale } from '../i18n';
 
-export default memo(function LanguageSelector() {
+export default memo(function LanguageSelector({ openUpward = false }: { openUpward?: boolean }) {
   const { language, setLanguage } = useAppStore();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -29,11 +29,11 @@ export default memo(function LanguageSelector() {
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
 
             <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              initial={{ opacity: 0, y: openUpward ? -8 : 8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              exit={{ opacity: 0, y: openUpward ? -8 : 8, scale: 0.95 }}
               transition={{ duration: 0.08, ease: 'easeOut' }}
-              className="absolute top-full right-0 mt-2 z-50 w-48 max-h-64 overflow-y-auto bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl custom-scrollbar"
+              className={`absolute ${openUpward ? 'bottom-full right-0 mb-2' : 'top-full right-0 mt-2'} z-50 w-48 max-h-64 overflow-y-auto bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl custom-scrollbar`}
             >
               {SUPPORTED_LOCALES.map((loc) => (
                 <button

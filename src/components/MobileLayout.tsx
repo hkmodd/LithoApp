@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer, Clock } from 'lucide-react';
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer, Clock, Save, Download, FolderOpen } from 'lucide-react';
 import LithoPreview from './LithoPreview';
 import ErrorBoundary from './ErrorBoundary';
 import ImageTab from './tabs/ImageTab';
@@ -54,6 +54,14 @@ export default function MobileLayout({
   const { t } = useTranslation();
   const [mobileTab, setMobileTab] = useState<MobileTab>('image');
   const [showGallery, setShowGallery] = useState(false);
+  const projectImportRef = useRef<HTMLInputElement>(null);
+  const { saveToLocal, exportToFile, importFromFile } = useProjectStore();
+
+  const handleProjectImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await importFromFile(file);
+    if (projectImportRef.current) projectImportRef.current.value = '';
+  }, [importFromFile]);
 
   const hasImage = !!imageData;
 
@@ -201,7 +209,7 @@ export default function MobileLayout({
             </button>
           </div>
           <div className="flex items-center justify-center gap-3">
-            <LanguageSelector />
+            <LanguageSelector openUpward />
             <VersionBadge />
             <button
               onClick={(e) => { e.stopPropagation(); setShowGallery(true); }}
@@ -370,6 +378,34 @@ export default function MobileLayout({
             {/* ── Image Tab ── */}
             {mobileTab === 'image' && (
               <>
+                {/* Project actions toolbar */}
+                <input type="file" ref={projectImportRef} onChange={handleProjectImport} accept=".json" className="hidden" />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={saveToLocal}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-gray-300 transition-colors duration-75"
+                    title={t('sidebar.saveProject')}
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span className="font-medium">{t('sidebar.saveProject')}</span>
+                  </button>
+                  <button
+                    onClick={exportToFile}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-gray-300 transition-colors duration-75"
+                    title={t('sidebar.exportProject')}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="font-medium">{t('sidebar.exportProject')}</span>
+                  </button>
+                  <button
+                    onClick={() => projectImportRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-gray-300 transition-colors duration-75"
+                    title={t('sidebar.importProject')}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span className="font-medium">{t('sidebar.importProject')}</span>
+                  </button>
+                </div>
                 {/* Mode Switcher */}
                 <div className="space-y-2">
                   <label className="text-[9px] font-mono uppercase tracking-[0.2em] text-gray-600">{t('mode.label')}</label>
@@ -431,11 +467,11 @@ export default function MobileLayout({
             {/* ── Mesh Tab (Geometry + Frame) ── */}
             {mobileTab === 'mesh' && (
               <>
-                {/* Header with language + reset */}
+                {/* Header with reset */}
                 <div className="flex items-center justify-between">
                   <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-gray-500">{t('tab.geometry')} · {t('tab.frame')}</h3>
                   <div className="flex items-center gap-1.5">
-                    <LanguageSelector />
+                    <LanguageSelector openUpward />
                     <button onClick={resetLithoParams} className="text-[9px] font-mono uppercase text-gray-500 px-2 py-1 rounded-full bg-white/5 active:bg-white/10 transition-colors duration-75">
                       {t('app.reset')}
                     </button>

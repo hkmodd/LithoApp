@@ -34,7 +34,12 @@ pub fn generate_hanger(
     let inner_r = 3.0_f32;
     let thickness = params.frame_thickness;
 
-    let cx = max_top_x;
+    // For Flat / Arc the mesh is centred at X = 0 — place the hanger there.
+    // For Heart, max_top_x marks the centre of the top-notch, which is correct.
+    let cx = match params.shape {
+        crate::types::LithoShape::Heart => max_top_x,
+        _ => 0.0,
+    };
     let cy = if max_top_y == f32::NEG_INFINITY {
         physical_height / 2.0
     } else {
