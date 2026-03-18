@@ -25,7 +25,7 @@ export default memo(function MobileNavBar({ activeTab, onTabChange, hasMesh }: M
 
   return (
     <nav
-      className="relative z-50 flex items-end bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/8"
+      className="relative z-50 flex items-end bg-[#0a0a0a] border-t border-white/8"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       {tabs.map(({ id, icon: Icon, labelKey }) => {

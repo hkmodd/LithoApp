@@ -20,7 +20,8 @@ const SLICER_TIPS: Record<string, { layerHeight: string; infill: string; orienta
 };
 
 export default function FrameTab() {
-  const { lithoParams, updateLithoParams } = useAppStore();
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const updateLithoParams = useAppStore(s => s.updateLithoParams);
   const { shape, borderWidth, frameThickness, baseStand, hanger, curveAngle } = lithoParams;
   const { t } = useTranslation();
   const [tipsOpen, setTipsOpen] = useState(false);

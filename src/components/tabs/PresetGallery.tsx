@@ -94,7 +94,10 @@ const presets: Preset[] = [
 ];
 
 export default function PresetGallery() {
-  const { updateLithoParams, lithoParams, updateImageEdits, imageEdits } = useAppStore();
+  const updateLithoParams = useAppStore(s => s.updateLithoParams);
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const updateImageEdits = useAppStore(s => s.updateImageEdits);
+  const imageEdits = useAppStore(s => s.imageEdits);
   const { t } = useTranslation();
 
   const applyPreset = (preset: Preset) => {

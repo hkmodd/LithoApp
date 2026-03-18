@@ -40,7 +40,7 @@ function ProgressIndicator() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="bg-black/40 backdrop-blur-xl border border-[#2563EB]/30 rounded-xl p-3 shadow-2xl pointer-events-auto flex items-center gap-3"
+          className="bg-black/40 border border-[#2563EB]/30 rounded-xl p-3 shadow-2xl pointer-events-auto flex items-center gap-3"
         >
           <Activity className="w-4 h-4 text-[#2563EB] animate-pulse" />
           <div className="flex flex-col w-32">
@@ -502,7 +502,7 @@ export default function App() {
       >
         <div className="max-w-7xl mx-auto flex justify-between items-start">
           <div className="flex flex-col gap-2">
-            <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex items-center gap-3 shadow-2xl pointer-events-auto">
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-3 flex items-center gap-3 shadow-2xl pointer-events-auto">
               <div className="bg-[#2563EB] p-2 rounded-xl">
                 <Box className="w-5 h-5 text-white" />
               </div>
@@ -529,7 +529,7 @@ export default function App() {
                 className="flex gap-2"
               >
                 {/* Undo / Redo */}
-                <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
                   <button
                     onClick={() => {
                       const restored = useHistoryStore.getState().undo();
@@ -567,7 +567,7 @@ export default function App() {
                 </div>
 
                 {/* View toggles */}
-                <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl pointer-events-auto">
                   <button 
                     onClick={() => setSimulateLight(!simulateLight)}
                     className={cn("p-2.5 rounded-xl transition-colors duration-75", simulateLight ? "bg-white/10 text-yellow-400 shadow-inner" : "text-gray-400 hover:text-white hover:bg-white/5")}
@@ -624,11 +624,11 @@ export default function App() {
         animate={{ x: isControlsOpen ? 0 : '100%', y: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
       >
-        <div className="bg-[#0a0a0a]/80 backdrop-blur-3xl border-l border-white/10 flex flex-col h-full shadow-[0_-20px_40px_rgba(0,0,0,0.5)] pointer-events-auto">
+        <div className="bg-[#0a0a0a] border-l border-white/10 flex flex-col h-full shadow-[0_-20px_40px_rgba(0,0,0,0.5)] pointer-events-auto">
 
           {/* Desktop Toggle Button */}
           <button 
-            className="hidden md:flex absolute top-1/2 -left-12 w-12 h-24 bg-[#0a0a0a]/80 backdrop-blur-3xl border-y border-l border-white/10 rounded-l-2xl items-center justify-center cursor-pointer hover:bg-white/10 transition-colors pointer-events-auto"
+            className="hidden md:flex absolute top-1/2 -left-12 w-12 h-24 bg-[#0a0a0a] border-y border-l border-white/10 rounded-l-2xl items-center justify-center cursor-pointer hover:bg-white/10 transition-colors pointer-events-auto"
             onClick={() => setIsControlsOpen(!isControlsOpen)}
             aria-label={isControlsOpen ? 'Collapse controls panel' : 'Expand controls panel'}
             aria-expanded={isControlsOpen}

@@ -8,7 +8,9 @@ import PresetGallery from './PresetGallery';
 import { tap } from '../../lib/haptics';
 
 export default function ImageTab() {
-  const { lithoParams, updateLithoParams, mode } = useAppStore();
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const updateLithoParams = useAppStore(s => s.updateLithoParams);
+  const mode = useAppStore(s => s.mode);
   const { contrast, brightness, sharpness, invert, threshold } = lithoParams;
   const { t } = useTranslation();
 

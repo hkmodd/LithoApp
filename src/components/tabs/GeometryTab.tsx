@@ -10,7 +10,8 @@ import TouchSlider from '../TouchSlider';
 import { tap } from '../../lib/haptics';
 
 export default function GeometryTab() {
-  const { lithoParams, updateLithoParams } = useAppStore();
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const updateLithoParams = useAppStore(s => s.updateLithoParams);
   const { shape, physicalSize, resolution, baseThickness, maxThickness, smoothing } = lithoParams;
   const { t } = useTranslation();
 

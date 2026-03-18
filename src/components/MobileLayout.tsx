@@ -47,7 +47,18 @@ export default function MobileLayout({
   isDragging, handleDragOver, handleDragLeave, handleDrop,
   fileInputRef, handleImageUpload,
 }: MobileLayoutProps) {
-  const { imageSrc, imageData, meshData, colorMeshSet, activeColorChannel, lithoParams, isProcessing, progress, mode, setMode, resetLithoParams, updateLithoParams } = useAppStore();
+  const imageSrc = useAppStore(s => s.imageSrc);
+  const imageData = useAppStore(s => s.imageData);
+  const meshData = useAppStore(s => s.meshData);
+  const colorMeshSet = useAppStore(s => s.colorMeshSet);
+  const activeColorChannel = useAppStore(s => s.activeColorChannel);
+  const lithoParams = useAppStore(s => s.lithoParams);
+  const isProcessing = useAppStore(s => s.isProcessing);
+  const progress = useAppStore(s => s.progress);
+  const mode = useAppStore(s => s.mode);
+  const setMode = useAppStore(s => s.setMode);
+  const resetLithoParams = useAppStore(s => s.resetLithoParams);
+  const updateLithoParams = useAppStore(s => s.updateLithoParams);
   const canUndo = useHistoryStore((s) => s.canUndo);
   const canRedo = useHistoryStore((s) => s.canRedo);
   const { t } = useTranslation();
@@ -152,7 +163,7 @@ export default function MobileLayout({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="w-full max-w-xs bg-black/60 backdrop-blur-xl border border-[#2563EB]/30 rounded-xl p-3 shadow-2xl flex items-center gap-3"
+                className="w-full max-w-xs bg-black border border-[#2563EB]/30 rounded-xl p-3 shadow-2xl flex items-center gap-3"
               >
                 <Activity className="w-4 h-4 text-[#2563EB] animate-pulse flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -276,7 +287,7 @@ export default function MobileLayout({
               style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
             >
               {/* Undo / Redo */}
-              <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
+              <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
                 <button
                   onClick={() => { const r = useHistoryStore.getState().undo(); if (r) updateLithoParams({ ...r, _skipHistory: true }); }}
                   disabled={!canUndo}
@@ -295,7 +306,7 @@ export default function MobileLayout({
                 </button>
               </div>
               {/* View toggles */}
-              <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
+              <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-0.5 flex gap-0.5 shadow-xl">
               <button
                 onClick={() => setSimulateLight(!simulateLight)}
                 className={cn("p-1.5 rounded-lg transition-colors duration-75", simulateLight ? "bg-white/10 text-yellow-400" : "text-gray-400")}
@@ -346,8 +357,8 @@ export default function MobileLayout({
 
       {/* =========== BOTTOM: Tab Content (hidden in view mode) =========== */}
       {mobileTab !== 'view' && (
-      <div className="flex-1 min-h-0 bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/8 overflow-y-auto custom-scrollbar">
-        <AnimatePresence mode="popLayout">
+      <div className="flex-1 min-h-0 bg-[#0a0a0a] border-t border-white/8 overflow-y-auto custom-scrollbar">
+        <AnimatePresence mode="wait">
           <motion.div
             key={mobileTab}
             initial={{ opacity: 0 }}
@@ -403,7 +414,7 @@ export default function MobileLayout({
                     <div className="absolute inset-0 flex items-center justify-center">
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium rounded-full shadow-xl flex items-center gap-2 active:scale-95 transition-transform duration-75"
+                        className="px-4 py-2 bg-white/10 border border-white/20 text-white text-xs font-medium rounded-full shadow-xl flex items-center gap-2 active:scale-95 transition-transform duration-75"
                       >
                         <Camera className="w-3.5 h-3.5" />
                         {t('upload.replace')}

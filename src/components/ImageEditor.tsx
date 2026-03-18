@@ -19,7 +19,10 @@ import { cn } from '../lib/utils';
 import { tap } from '../lib/haptics';
 
 export default function ImageEditor() {
-  const { imageEdits, updateImageEdits, resetImageEdits, originalImage } = useAppStore();
+  const imageEdits = useAppStore(s => s.imageEdits);
+  const updateImageEdits = useAppStore(s => s.updateImageEdits);
+  const resetImageEdits = useAppStore(s => s.resetImageEdits);
+  const originalImage = useAppStore(s => s.originalImage);
   const { isCropping, rect, startCrop, cancelCrop, stopCrop } = useCropStore();
   const { t } = useTranslation();
 
