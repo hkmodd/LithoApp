@@ -1,8 +1,8 @@
 /**
  * Color Lithophane Engine — CMYW Channel Generation
  *
- * Converts an RGB image into 4 separate greyscale images (Cyan, Magenta, Yellow,
- * White) and generates 4 independent lithophane meshes.
+ * Converts an RGB image into 5 separate greyscale images (White base, Yellow,
+ * Magenta, Cyan, White top) and generates 5 independent lithophane meshes.
  *
  * Key insight: K (black) is NOT a separate physical channel. Instead, the White
  * layer's thickness controls luminosity:
@@ -110,6 +110,11 @@ function extractChannelImage(
         // K=0 → value=0 → grey=255 (thin white=light passes=bright)
         value = cmyw.k;
         break;
+      case 'white_top':
+        // White top diffuser: constant thin layer across entire surface.
+        // value=0.5 → grey=128 → uniform half-thickness diffuser
+        value = 0.5;
+        break;
     }
 
     // Invert: value 1 → pixel 0 (dark = thick), value 0 → pixel 255 (light = thin)
@@ -126,24 +131,28 @@ function extractChannelImage(
 
 /** Human-readable channel names for progress reporting */
 const CHANNEL_LABELS: Record<CMYWChannel, string> = {
-  cyan:    'Cyan (C)',
-  magenta: 'Magenta (M)',
-  yellow:  'Yellow (Y)',
-  white:   'White (W)',
+  white:     'White Base (W)',
+  yellow:    'Yellow (Y)',
+  magenta:   'Magenta (M)',
+  cyan:      'Cyan (C)',
+  white_top: 'White Top (T)',
 };
 
 /**
  * Generate a full CMYW color lithophane set.
  *
- * Produces 4 independent meshes, one per channel, by:
- * 1. Decomposing the source image into 4 greyscale channel images
+ * Produces 5 independent meshes, one per channel, by:
+ * 1. Decomposing the source image into 5 greyscale channel images
  * 2. Calling the WASM lithophane engine for each channel
  *
- * **White layer** uses the full baseThickness–maxThickness range (~0.6–2.8mm)
+ * **White base layer** uses the full baseThickness–maxThickness range (~0.6–2.8mm)
  * to control luminosity.
  *
  * **C/M/Y layers** are limited to colorThickness (default 0.6mm) as they act
  * only as color filters — too thick and they block all light.
+ *
+ * **White top layer** is a constant-thickness diffuser (~0.3–0.4mm) that
+ * softens and smooths the light output.
  */
 export function generateColorLitho(
   imageData: ImageData,
@@ -171,7 +180,8 @@ export function generateColorLitho(
     const channelImage = extractChannelImage(imageData.data, width, height, channel);
 
     // Step 2: Build params for this channel
-    const isColorLayer = channel !== 'white';
+    const isColorLayer = channel !== 'white' && channel !== 'white_top';
+    const isWhiteTop = channel === 'white_top';
     const channelParams: LithoParams = {
       ...params,
       invert: false, // channel extraction already handles polarity
@@ -180,7 +190,11 @@ export function generateColorLitho(
       sharpness: 0.0,
     };
 
-    if (isColorLayer) {
+    if (isWhiteTop) {
+      // White top diffuser: constant thin layer (~0.3–0.4mm)
+      channelParams.baseThickness = 0.3;
+      channelParams.maxThickness = 0.4;
+    } else if (isColorLayer) {
       // C/M/Y: limit thickness to colorThickness (thin filter layers)
       // Base = near-zero (no material where channel value is 0)
       channelParams.baseThickness = 0.0;

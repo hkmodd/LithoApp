@@ -112,6 +112,7 @@ const es: Record<TranslationKey, string> = {
   'color.magenta': 'Magenta',
   'color.yellow': 'Yellow',
   'color.white': 'White',
+  'color.white_top': 'White Top',
   'color.channelStats': 'Channel Stats',
   'color.vertices': 'Vertices',
   'color.exportAll': 'Export All Plates (ZIP)',

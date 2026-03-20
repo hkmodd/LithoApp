@@ -8,13 +8,14 @@ import type { ColorChannel } from '../../workers/types';
 /** UI-only channel colour palette (renamed to avoid collision with engine CHANNEL_COLORS) */
 const UI_CHANNEL_COLORS: Record<ColorChannel, string> = {
   composite: '#6366f1', // indigo
-  cyan:      '#06b6d4', // cyan
-  magenta:   '#ec4899', // pink
+  white:     '#f5f5f5', // near-white (base)
   yellow:    '#eab308', // yellow
-  white:     '#f5f5f5', // near-white
+  magenta:   '#ec4899', // pink
+  cyan:      '#06b6d4', // cyan
+  white_top: '#e0e0ff', // light blue-white (top diffuser)
 };
 
-const CHANNEL_KEYS: ColorChannel[] = ['composite', 'cyan', 'magenta', 'yellow', 'white'];
+const CHANNEL_KEYS: ColorChannel[] = ['composite', 'white', 'yellow', 'magenta', 'cyan', 'white_top'];
 
 export default function ColorLithoTab() {
   // Individual selectors — no re-render on unrelated store changes (e.g. progress)

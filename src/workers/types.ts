@@ -4,13 +4,13 @@ export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter' | 'color-lith
 export type LithoShape = 'flat' | 'arc' | 'cylinder' | 'sphere' | 'heart' | 'lampshade' | 'vase' | 'dome';
 
 /** Physical CMYW plate identifiers used by the engine (K is encoded in White thickness) */
-export type CMYWChannel = 'cyan' | 'magenta' | 'yellow' | 'white';
+export type CMYWChannel = 'cyan' | 'magenta' | 'yellow' | 'white' | 'white_top';
 
 /** @deprecated Use CMYWChannel instead */
 export type CMYKChannel = CMYWChannel;
 
 /** UI-facing channel selector: includes composite preview */
-export type ColorChannel = 'composite' | 'cyan' | 'magenta' | 'yellow' | 'white';
+export type ColorChannel = 'composite' | 'cyan' | 'magenta' | 'yellow' | 'white' | 'white_top';
 
 /** Non-destructive image edits applied before engine processing */
 export interface ImageEdits {
@@ -84,23 +84,25 @@ export interface MeshEngineResult {
   stats: MeshStats;
 }
 
-/** Result of CMYW color lithophane generation: one mesh per channel */
+/** Result of CMYW color lithophane generation: one mesh per channel (5 layers) */
 export interface ColorMeshSet {
-  cyan: MeshEngineResult;
-  magenta: MeshEngineResult;
-  yellow: MeshEngineResult;
   white: MeshEngineResult;
+  yellow: MeshEngineResult;
+  magenta: MeshEngineResult;
+  cyan: MeshEngineResult;
+  white_top: MeshEngineResult;
 }
 
-/** All engine channel names in print order: White (base) → Yellow → Magenta → Cyan */
-export const COLOR_CHANNELS: CMYWChannel[] = ['cyan', 'magenta', 'yellow', 'white'];
+/** All engine channel names in print order: White base → Yellow → Magenta → Cyan → White top */
+export const COLOR_CHANNELS: CMYWChannel[] = ['white', 'yellow', 'magenta', 'cyan', 'white_top'];
 
 /** Display colors for each engine channel (used in 3D preview tinting) */
 export const CHANNEL_COLORS: Record<CMYWChannel, string> = {
-  cyan:    '#00FFFF',
-  magenta: '#FF00FF',
-  yellow:  '#FFFF00',
-  white:   '#FFFFFF',
+  white:     '#FFFFFF',
+  yellow:    '#FFFF00',
+  magenta:   '#FF00FF',
+  cyan:      '#00FFFF',
+  white_top: '#F0F0FF',
 };
 
 export interface WorkerRequest {

@@ -113,6 +113,7 @@ const zh: Record<TranslationKey, string> = {
   'color.magenta': '品红',
   'color.yellow': '黄色',
   'color.white': '白色',
+  'color.white_top': 'White Top',
   'color.channelStats': 'Channel Stats',
   'color.vertices': 'Vertices',
   'color.exportAll': '导出所有板 (ZIP)',
