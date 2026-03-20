@@ -1,9 +1,10 @@
 import { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Minus, ChevronDown, AlertTriangle, Beaker, Layers, Settings2 } from 'lucide-react';
+import { Plus, Minus, ChevronDown, AlertTriangle, Beaker, Layers, Settings2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../i18n';
 import { usePaletteStore } from '../store/usePaletteStore';
+import { useAppStore } from '../store/useAppStore';
 import type { Filament } from '../models/filamentPalette';
 
 // ─── Slot Selector (dropdown with filament swatches) ─────────────────────────
@@ -135,6 +136,12 @@ export default function AmsConfigurator() {
   const setLayerHeight = usePaletteStore(s => s.setLayerHeight);
   const setManagerOpen = usePaletteStore(s => s.setManagerOpen);
 
+  // Layer visibility toggles (for stacked 3D preview)
+  const paletteMeshSet = useAppStore(s => s.paletteMeshSet);
+  const paletteLayerVisibility = useAppStore(s => s.paletteLayerVisibility);
+  const togglePaletteLayer = useAppStore(s => s.togglePaletteLayer);
+  const hasLayerData = !!(paletteMeshSet && paletteMeshSet.entries.length > 0);
+
   // Warnings
   const hasWhite = amsSlots.some(s => {
     const hex = s.filament.hexColor.toLowerCase();
@@ -172,14 +179,35 @@ export default function AmsConfigurator() {
 
       {/* Slot selectors */}
       <div className="space-y-1.5">
-        {amsSlots.map(slot => (
-          <SlotSelector
-            key={slot.slot}
-            slotNumber={slot.slot}
-            currentFilament={slot.filament}
-            library={library}
-            onSelect={(f) => assignSlot(slot.slot, f)}
-          />
+        {amsSlots.map((slot, idx) => (
+          <div key={slot.slot} className="flex items-center gap-1">
+            <div className="flex-1 min-w-0">
+              <SlotSelector
+                slotNumber={slot.slot}
+                currentFilament={slot.filament}
+                library={library}
+                onSelect={(f) => assignSlot(slot.slot, f)}
+              />
+            </div>
+            {/* Eye-toggle: show/hide this layer in the 3D preview */}
+            {hasLayerData && idx < (paletteMeshSet?.entries.length ?? 0) && (
+              <button
+                onClick={() => togglePaletteLayer(idx)}
+                className={cn(
+                  "p-1.5 rounded-lg transition-all shrink-0",
+                  paletteLayerVisibility[idx] !== false
+                    ? "text-indigo-400 hover:bg-indigo-500/15"
+                    : "text-gray-600 hover:bg-white/5"
+                )}
+                title={paletteLayerVisibility[idx] !== false ? 'Hide layer' : 'Show layer'}
+              >
+                {paletteLayerVisibility[idx] !== false
+                  ? <Eye className="w-3.5 h-3.5" />
+                  : <EyeOff className="w-3.5 h-3.5" />
+                }
+              </button>
+            )}
+          </div>
         ))}
       </div>
 

@@ -63,6 +63,13 @@ interface AppState {
   paletteMeshSet: PaletteMeshSet | null;
   setPaletteMeshSet: (data: PaletteMeshSet | null) => void;
 
+  // Palette layer visibility (3D preview)
+  activePaletteLayer: number | 'all';
+  setActivePaletteLayer: (layer: number | 'all') => void;
+  paletteLayerVisibility: boolean[];
+  setPaletteLayerVisibility: (v: boolean[]) => void;
+  togglePaletteLayer: (index: number) => void;
+
   // Lithophane Parameters
   lithoParams: LithoParams;
   /**
@@ -137,7 +144,22 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveColorChannel: (ch) => set({ activeColorChannel: ch }),
 
   paletteMeshSet: null,
-  setPaletteMeshSet: (data) => set({ paletteMeshSet: data }),
+  setPaletteMeshSet: (data) => set({
+    paletteMeshSet: data,
+    // Reset visibility array to match new entries
+    paletteLayerVisibility: data ? data.entries.map(() => true) : [],
+    activePaletteLayer: 'all',
+  }),
+
+  activePaletteLayer: 'all',
+  setActivePaletteLayer: (layer) => set({ activePaletteLayer: layer }),
+  paletteLayerVisibility: [],
+  setPaletteLayerVisibility: (v) => set({ paletteLayerVisibility: v }),
+  togglePaletteLayer: (index) => set((state) => {
+    const next = [...state.paletteLayerVisibility];
+    next[index] = !next[index];
+    return { paletteLayerVisibility: next };
+  }),
 
   lithoParams: defaultLithoParams,
   updateLithoParams: (params) => {

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer } from 'lucide-react';
 import LithoPreview from './LithoPreview';
+import type { PaletteLayer } from './LithoPreview';
 import ErrorBoundary from './ErrorBoundary';
 import ImageTab from './tabs/ImageTab';
 import ColorLithoTab from './tabs/ColorLithoTab';
@@ -85,12 +86,25 @@ export default function MobileLayout({
       const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       return colorMeshSet[engineKey] ?? colorMeshSet.white;
     }
-    // Palette mode: show first filament's mesh
-    if (mode === 'palette-litho' && paletteMeshSet && paletteMeshSet.entries.length > 0) {
-      return paletteMeshSet.entries[0].mesh;
-    }
+    // In palette mode, previewMesh is NOT used — paletteLayers handles rendering.
     return meshData;
-  }, [mode, colorMeshSet, paletteMeshSet, activeColorChannel, meshData]);
+  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+
+  // ── Build palette layers for stacked 3D preview ──
+  const paletteLayerVisibility = useAppStore(s => s.paletteLayerVisibility);
+  const paletteLayers = useMemo<PaletteLayer[] | undefined>(() => {
+    if (mode !== 'palette-litho' || !paletteMeshSet || paletteMeshSet.entries.length === 0) {
+      return undefined;
+    }
+    return paletteMeshSet.entries.map((entry, i) => ({
+      positions: entry.mesh.positions!,
+      indices: entry.mesh.indices!,
+      normals: entry.mesh.normals ?? null,
+      color: entry.filamentHex,
+      visible: paletteLayerVisibility[i] !== false,
+      label: entry.filamentName,
+    }));
+  }, [mode, paletteMeshSet, paletteLayerVisibility]);
 
   const hasThickness = !!(previewMesh?.thickness);
 
@@ -246,14 +260,14 @@ export default function MobileLayout({
         }
       >
         {/* 3D Canvas */}
-        {previewMesh ? (
+        {(previewMesh || paletteLayers) ? (
           <ErrorBoundary region="3D Preview">
             <LithoPreview
-              positions={previewMesh.positions}
-              indices={previewMesh.indices}
-              normals={previewMesh.normals || null}
-              uvs={previewMesh.uvs || null}
-              thickness={previewMesh.thickness || null}
+              positions={previewMesh?.positions || null}
+              indices={previewMesh?.indices || null}
+              normals={previewMesh?.normals || null}
+              uvs={previewMesh?.uvs || null}
+              thickness={previewMesh?.thickness || null}
               wireframe={wireframe}
               simulateLight={simulateLight}
               textureUrl={imageSrc}
@@ -262,6 +276,7 @@ export default function MobileLayout({
               minThickness={lithoParams.baseThickness}
               maxThickness={lithoParams.maxThickness}
               isMobile={true}
+              paletteLayers={paletteLayers}
             />
           </ErrorBoundary>
         ) : (

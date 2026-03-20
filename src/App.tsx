@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
 import { Upload, Layers, Box, Activity, Image as ImageIcon, Lightbulb, Palette, Undo2, Redo2, Save, Download, FolderOpen, Thermometer, Clock } from 'lucide-react';
 import LithoPreview from './components/LithoPreview';
+import type { PaletteLayer } from './components/LithoPreview';
 import ErrorBoundary from './components/ErrorBoundary';
 import ViewportOverlay from './components/ViewportOverlay';
 import MobileLayout from './components/MobileLayout';
@@ -99,6 +100,9 @@ export default function App() {
     return `${slotIds}::${s.maxLayers}::${s.layerHeight}`;
   });
 
+  // ── Palette layer visibility (for stacked 3D preview) ──
+  const paletteLayerVisibility = useAppStore(s => s.paletteLayerVisibility);
+
   
   const [activeTab, setActiveTab] = useState<'image' | 'geometry' | 'frame' | 'color'>('image');
   const [isControlsOpen, setIsControlsOpen] = useState(true);
@@ -110,19 +114,33 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // ── Derive preview mesh: either the active color channel, palette entry, or the main meshData ──
+  // ── Derive preview mesh: either the active color channel or the main meshData ──
+  // In palette mode, the stacked layers are handled separately via paletteLayers prop.
   const previewMesh = useMemo(() => {
     if (mode === 'color-litho' && colorMeshSet && activeColorChannel !== 'composite') {
       const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       const channelMesh = colorMeshSet[engineKey];
       if (channelMesh) return channelMesh;
     }
-    // Palette mode: show the first filament's mesh as default preview
-    if (mode === 'palette-litho' && paletteMeshSet && paletteMeshSet.entries.length > 0) {
-      return paletteMeshSet.entries[0].mesh;
-    }
+    // In palette mode, previewMesh is NOT used — paletteLayers is used instead.
+    // Keep fallback to meshData for all other modes.
     return meshData;
-  }, [mode, colorMeshSet, paletteMeshSet, activeColorChannel, meshData]);
+  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+
+  // ── Build palette layers array for stacked 3D preview ──
+  const paletteLayers = useMemo<PaletteLayer[] | undefined>(() => {
+    if (mode !== 'palette-litho' || !paletteMeshSet || paletteMeshSet.entries.length === 0) {
+      return undefined;
+    }
+    return paletteMeshSet.entries.map((entry, i) => ({
+      positions: entry.mesh.positions!,
+      indices: entry.mesh.indices!,
+      normals: entry.mesh.normals ?? null,
+      color: entry.filamentHex,
+      visible: paletteLayerVisibility[i] !== false,
+      label: entry.filamentName,
+    }));
+  }, [mode, paletteMeshSet, paletteLayerVisibility]);
 
   const hasThickness = !!(previewMesh?.thickness);
   
@@ -529,6 +547,7 @@ export default function App() {
               showHeatmap={showHeatmap}
               minThickness={lithoParams.baseThickness}
               maxThickness={lithoParams.maxThickness}
+              paletteLayers={paletteLayers}
             />
           </ErrorBoundary>
         )}
