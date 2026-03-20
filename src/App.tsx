@@ -91,6 +91,14 @@ export default function App() {
   const resetImageEdits = useAppStore(s => s.resetImageEdits);
   const { t } = useTranslation();
 
+  // ── Palette fingerprint: changes when AMS slots/params update → triggers re-processing ──
+  const paletteFingerprint = usePaletteStore(s => {
+    if (mode !== 'palette-litho') return '';
+    // Serialize slot filament IDs + hex colors + params into a lightweight fingerprint
+    const slotIds = s.amsSlots.map(sl => `${sl.slot}:${sl.filament.id}:${sl.filament.hexColor}`).join('|');
+    return `${slotIds}::${s.maxLayers}::${s.layerHeight}`;
+  });
+
   
   const [activeTab, setActiveTab] = useState<'image' | 'geometry' | 'frame' | 'color'>('image');
   const [isControlsOpen, setIsControlsOpen] = useState(true);
@@ -355,6 +363,7 @@ export default function App() {
   }, [mode, setProcessing, setRegenerating, setProgress]);
 
   // Re-process when parameters change (debounced to avoid flooding the worker)
+  // paletteFingerprint is included so palette slot/config changes also trigger re-processing
   useEffect(() => {
     if (!imageData) return;
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -364,7 +373,7 @@ export default function App() {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [lithoParams, imageData, processImage]);
+  }, [lithoParams, imageData, processImage, paletteFingerprint]);
 
   // Re-apply image edits whenever they change
   const editDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
