@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Palette, Info, Zap, FlaskConical } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -28,10 +28,15 @@ export default function ColorLithoTab() {
   const activeColorChannel = useAppStore(s => s.activeColorChannel);
   const setActiveColorChannel = useAppStore(s => s.setActiveColorChannel);
   const colorMeshSet = useAppStore(s => s.colorMeshSet);
+  const setMode = useAppStore(s => s.setMode);
+  const storeMode = useAppStore(s => s.mode);
   const { t } = useTranslation();
 
-  // Engine mode toggle (local state — persisted separately if needed)
-  const [engineMode, setEngineMode] = useState<EngineMode>('quick');
+  // Derive engine mode from store mode (no local state)
+  const engineMode = useMemo<EngineMode>(
+    () => storeMode === 'palette-litho' ? 'palette' : 'quick',
+    [storeMode]
+  );
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -45,7 +50,7 @@ export default function ColorLithoTab() {
         <div className="grid grid-cols-2 gap-1.5 p-1 bg-white/[0.03] rounded-xl border border-white/5">
           {/* Quick CMYW */}
           <button
-            onClick={() => setEngineMode('quick')}
+            onClick={() => setMode('color-litho')}
             className={cn(
               "relative flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-medium rounded-lg transition-all duration-150",
               engineMode === 'quick'
@@ -66,7 +71,7 @@ export default function ColorLithoTab() {
 
           {/* Palette Mode */}
           <button
-            onClick={() => setEngineMode('palette')}
+            onClick={() => setMode('palette-litho')}
             className={cn(
               "relative flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-medium rounded-lg transition-all duration-150",
               engineMode === 'palette'

@@ -23,6 +23,7 @@ import { useAppStore } from './store/useAppStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { useProjectStore } from './store/useProjectStore';
 import type { LithoParams, CMYWChannel } from './workers/types';
+import { usePaletteStore } from './store/usePaletteStore';
 import { useTranslation } from './i18n';
 import { applyEdits, hasEdits } from './lib/imageProcessor';
 
@@ -67,6 +68,7 @@ export default function App() {
   const imageData = useAppStore(s => s.imageData);
   const meshData = useAppStore(s => s.meshData);
   const colorMeshSet = useAppStore(s => s.colorMeshSet);
+  const paletteMeshSet = useAppStore(s => s.paletteMeshSet);
   const activeColorChannel = useAppStore(s => s.activeColorChannel);
   const lithoParams = useAppStore(s => s.lithoParams);
   const originalImage = useAppStore(s => s.originalImage);
@@ -82,6 +84,7 @@ export default function App() {
   const setProgress = useAppStore(s => s.setProgress);
   const setMeshData = useAppStore(s => s.setMeshData);
   const setColorMeshSet = useAppStore(s => s.setColorMeshSet);
+  const setPaletteMeshSet = useAppStore(s => s.setPaletteMeshSet);
   const updateLithoParams = useAppStore(s => s.updateLithoParams);
   const resetLithoParams = useAppStore(s => s.resetLithoParams);
   const setOriginalImage = useAppStore(s => s.setOriginalImage);
@@ -99,15 +102,19 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // ── Derive preview mesh: either the active color channel or the main meshData ──
+  // ── Derive preview mesh: either the active color channel, palette entry, or the main meshData ──
   const previewMesh = useMemo(() => {
     if (mode === 'color-litho' && colorMeshSet && activeColorChannel !== 'composite') {
       const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       const channelMesh = colorMeshSet[engineKey];
       if (channelMesh) return channelMesh;
     }
+    // Palette mode: show the first filament's mesh as default preview
+    if (mode === 'palette-litho' && paletteMeshSet && paletteMeshSet.entries.length > 0) {
+      return paletteMeshSet.entries[0].mesh;
+    }
     return meshData;
-  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+  }, [mode, colorMeshSet, paletteMeshSet, activeColorChannel, meshData]);
 
   const hasThickness = !!(previewMesh?.thickness);
   
@@ -177,6 +184,7 @@ export default function App() {
             stats: e.data.stats
           });
           setColorMeshSet(null); // clear color mesh when switching modes
+          setPaletteMeshSet(null); // also clear palette mesh
         });
         setProcessing(false);
         setRegenerating(false);
@@ -195,6 +203,27 @@ export default function App() {
             thickness: whiteMesh.thickness,
             stats: whiteMesh.stats
           });
+        });
+        setProcessing(false);
+        setRegenerating(false);
+        setProgress(null);
+      } else if (e.data.type === 'palette-complete') {
+        // Palette lithophane: per-filament meshes received
+        startTransition(() => {
+          setPaletteMeshSet(e.data.paletteMeshSet);
+          setColorMeshSet(null); // clear CMYW data
+          // Set first entry as primary mesh for stats display
+          const first = e.data.paletteMeshSet.entries[0];
+          if (first) {
+            setMeshData({
+              positions: first.mesh.positions,
+              indices: first.mesh.indices,
+              normals: first.mesh.normals,
+              uvs: first.mesh.uvs,
+              thickness: first.mesh.thickness,
+              stats: first.mesh.stats
+            });
+          }
         });
         setProcessing(false);
         setRegenerating(false);
@@ -258,10 +287,10 @@ export default function App() {
 
   // ── Auto-switch tab on mode change ──────────────────────────────
   useEffect(() => {
-    if (mode === 'color-litho') {
+    if (mode === 'color-litho' || mode === 'palette-litho') {
       setActiveTab('color');
     } else if (activeTab === 'color') {
-      // Leaving color-litho mode — switch to 'image' since 'color' tab doesn't exist
+      // Leaving color/palette mode — switch to 'image' since 'color' tab doesn't exist
       setActiveTab('image');
     }
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -307,14 +336,22 @@ export default function App() {
     setRegenerating(true);
     lastProgressTimeRef.current = 0;
     setProgress({ percent: 0, message: 'Starting...' });
-    workerRef.current.postMessage({
+    // Build message — include printConfigJson for palette-litho mode
+    const msg: any = {
       id,
       mode: mode,
       imageData: imgData.data,
       width: imgData.width,
       height: imgData.height,
       params
-    });
+    };
+    if (mode === 'palette-litho') {
+      const cfg = usePaletteStore.getState().buildPrintConfig();
+      if (cfg) {
+        msg.printConfigJson = JSON.stringify(cfg);
+      }
+    }
+    workerRef.current.postMessage(msg);
   }, [mode, setProcessing, setRegenerating, setProgress]);
 
   // Re-process when parameters change (debounced to avoid flooding the worker)
@@ -729,7 +766,7 @@ export default function App() {
                     onClick={() => setMode('color-litho')}
                     className={cn(
                       "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
-                      mode === 'color-litho' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
+                      (mode === 'color-litho' || mode === 'palette-litho') ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400 hover:text-white"
                     )}
                   >
                     {t('mode.colorLitho')}
@@ -787,7 +824,7 @@ export default function App() {
               {/* Tabs */}
               <div className={cn("space-y-6 transition-opacity duration-500", !imageData && "opacity-20 pointer-events-none")}>
                 <div className="flex p-1 bg-white/5 rounded-xl">
-                  {(mode === 'color-litho'
+                  {(mode === 'color-litho' || mode === 'palette-litho'
                     ? (['color', 'geometry', 'frame'] as const)
                     : (['image', 'geometry', 'frame'] as const)
                   ).map((tab) => (
@@ -805,10 +842,10 @@ export default function App() {
                 </div>
 
                 {/* Tab Content: Image */}
-                {activeTab === 'image' && mode !== 'color-litho' && <ImageTab />}
+                {activeTab === 'image' && mode !== 'color-litho' && mode !== 'palette-litho' && <ImageTab />}
 
                 {/* Tab Content: Color */}
-                {activeTab === 'color' && mode === 'color-litho' && <ColorLithoTab />}
+                {activeTab === 'color' && (mode === 'color-litho' || mode === 'palette-litho') && <ColorLithoTab />}
 
                 {/* Tab Content: Geometry */}
                 {activeTab === 'geometry' && <GeometryTab />}

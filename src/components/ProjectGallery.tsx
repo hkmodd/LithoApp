@@ -54,6 +54,7 @@ function ModeBadge({ mode }: { mode: string }) {
     lithophane: { icon: ImageIcon, label: 'Litho', color: 'text-blue-400 bg-blue-500/20' },
     extrusion: { icon: Box, label: 'Extrude', color: 'text-amber-400 bg-amber-500/20' },
     'color-litho': { icon: Palette, label: 'Color', color: 'text-purple-400 bg-purple-500/20' },
+    'palette-litho': { icon: Palette, label: 'Palette', color: 'text-purple-400 bg-purple-500/20' },
   };
   const cfg = modeConfig[mode as keyof typeof modeConfig] || modeConfig.lithophane;
   const Icon = cfg.icon;

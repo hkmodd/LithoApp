@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Palette, Download, FileBox, Check, Box, Triangle, Archive } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { LithoParams } from '../store/useAppStore';
-import type { CMYWChannel, ColorMeshSet } from '../workers/types';
+import type { CMYWChannel, ColorMeshSet, PaletteMeshSet } from '../workers/types';
 import { COLOR_CHANNELS } from '../workers/types';
 import { encodeBinarySTL } from '../utils/stlEncoder';
 import { encodeOBJ } from '../utils/objEncoder';
@@ -56,6 +56,7 @@ export default function ExportBar() {
   const isProcessing = useAppStore(s => s.isProcessing);
   const mode = useAppStore(s => s.mode);
   const colorMeshSet = useAppStore(s => s.colorMeshSet);
+  const paletteMeshSet = useAppStore(s => s.paletteMeshSet);
   const { t } = useTranslation();
 
   const [stlState, setStlState] = useState<DownloadState>('idle');
@@ -188,6 +189,38 @@ export default function ExportBar() {
     });
   }, [triggerDownload]);
 
+  /* ─── Export Palette Plates (ZIP) ──────────────────────────── */
+  const handleExportPaletteZip = useCallback(() => {
+    const pms = useAppStore.getState().paletteMeshSet;
+    const worker = useAppStore.getState().meshWorker;
+    if (!worker || !pms || pms.entries.length === 0) return;
+
+    setZipState('downloading');
+    heavy();
+
+    const packId = Date.now();
+    const handler = (e: MessageEvent) => {
+      if (e.data.type === 'stl-pack-complete' && e.data.id === packId) {
+        worker.removeEventListener('message', handler);
+        const blob = new Blob([e.data.zipBuffer], { type: 'application/zip' });
+        triggerDownload(blob, 'palette_litho_plates.zip');
+        setZipState('done');
+        setTimeout(() => setZipState('idle'), 2000);
+      }
+    };
+    worker.addEventListener('message', handler);
+    worker.postMessage({
+      id: packId,
+      mode: 'encode-palette-stl-pack',
+      palettePack: pms.entries,
+      // Required by WorkerRequest shape but unused
+      imageData: new ImageData(1, 1),
+      width: 1,
+      height: 1,
+      params: {} as LithoParams,
+    });
+  }, [triggerDownload]);
+
   /* ─── button icon resolver ───────────────────────────────── */
   function stateIcon(state: DownloadState, fallback: React.ReactNode) {
     if (state === 'downloading') return <Download className="w-4 h-4 animate-bounce" />;
@@ -219,7 +252,7 @@ export default function ExportBar() {
 
       {/* ─── Export Buttons ────────────────────────────────── */}
       <div className="export-actions">
-        {mode !== 'color-litho' && (
+        {mode !== 'color-litho' && mode !== 'palette-litho' && (
           <button
             onClick={handleExportColorProfile}
             disabled={disabled}
@@ -244,27 +277,45 @@ export default function ExportBar() {
           </button>
         )}
 
-        <button
-          onClick={handleExportSTL}
-          disabled={disabled}
-          className="export-btn export-btn-primary"
-          title={t('export.stlTooltip')}
-        >
-          <div className="export-btn-shimmer" />
-          {stateIcon(stlState, <Download className="w-4 h-4" />)}
-          <span className="export-btn-format">STL</span>
-        </button>
+        {/* ─── ZIP Export (Palette Litho) ──────────────────── */}
+        {mode === 'palette-litho' && paletteMeshSet && paletteMeshSet.entries.length > 0 && (
+          <button
+            onClick={handleExportPaletteZip}
+            disabled={disabled}
+            className="export-btn export-btn-ghost"
+            title={t('color.exportAll')}
+          >
+            {stateIcon(zipState, <Archive className="w-4 h-4" />)}
+            <span className="export-btn-label">{t('color.exportAll')}</span>
+          </button>
+        )}
 
-        <button
-          onClick={handleExportOBJ}
-          disabled={disabled}
-          className="export-btn export-btn-secondary"
-          title={t('export.objTooltip')}
-        >
-          <div className="export-btn-shimmer" />
-          {stateIcon(objState, <Box className="w-4 h-4" />)}
-          <span className="export-btn-format">OBJ</span>
-        </button>
+        {/* Single-mesh exports: hide in color/palette modes */}
+        {mode !== 'color-litho' && mode !== 'palette-litho' && (
+          <>
+            <button
+              onClick={handleExportSTL}
+              disabled={disabled}
+              className="export-btn export-btn-primary"
+              title={t('export.stlTooltip')}
+            >
+              <div className="export-btn-shimmer" />
+              {stateIcon(stlState, <Download className="w-4 h-4" />)}
+              <span className="export-btn-format">STL</span>
+            </button>
+
+            <button
+              onClick={handleExportOBJ}
+              disabled={disabled}
+              className="export-btn export-btn-secondary"
+              title={t('export.objTooltip')}
+            >
+              <div className="export-btn-shimmer" />
+              {stateIcon(objState, <Box className="w-4 h-4" />)}
+              <span className="export-btn-format">OBJ</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { AppMode, LithoParams, MeshStats, ImageEdits, ColorMeshSet, ColorChannel } from '../workers/types';
+import type { AppMode, LithoParams, MeshStats, ImageEdits, ColorMeshSet, ColorChannel, PaletteMeshSet } from '../workers/types';
 import { defaultImageEdits, defaultColorLithoParams } from '../workers/types';
 import { detectLocale } from '../i18n';
 import type { SupportedLocale } from '../i18n';
 
 // Re-export types so existing imports from the store still work
-export type { AppMode, LithoParams, LithoShape, ImageEdits, ColorMeshSet, ColorChannel } from '../workers/types';
+export type { AppMode, LithoParams, LithoShape, ImageEdits, ColorMeshSet, ColorChannel, PaletteMeshSet } from '../workers/types';
 export { defaultImageEdits, defaultColorLithoParams } from '../workers/types';
 
 // Persist / restore language from localStorage
@@ -58,6 +58,10 @@ interface AppState {
   setColorMeshSet: (data: ColorMeshSet | null) => void;
   activeColorChannel: ColorChannel;
   setActiveColorChannel: (ch: ColorChannel) => void;
+
+  // Palette Lithophane Output (per-filament meshes)
+  paletteMeshSet: PaletteMeshSet | null;
+  setPaletteMeshSet: (data: PaletteMeshSet | null) => void;
 
   // Lithophane Parameters
   lithoParams: LithoParams;
@@ -131,6 +135,9 @@ export const useAppStore = create<AppState>((set) => ({
   setColorMeshSet: (data) => set({ colorMeshSet: data }),
   activeColorChannel: 'white',
   setActiveColorChannel: (ch) => set({ activeColorChannel: ch }),
+
+  paletteMeshSet: null,
+  setPaletteMeshSet: (data) => set({ paletteMeshSet: data }),
 
   lithoParams: defaultLithoParams,
   updateLithoParams: (params) => {

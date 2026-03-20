@@ -51,6 +51,7 @@ export default function MobileLayout({
   const imageData = useAppStore(s => s.imageData);
   const meshData = useAppStore(s => s.meshData);
   const colorMeshSet = useAppStore(s => s.colorMeshSet);
+  const paletteMeshSet = useAppStore(s => s.paletteMeshSet);
   const activeColorChannel = useAppStore(s => s.activeColorChannel);
   const lithoParams = useAppStore(s => s.lithoParams);
   const isProcessing = useAppStore(s => s.isProcessing);
@@ -84,8 +85,12 @@ export default function MobileLayout({
       const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       return colorMeshSet[engineKey] ?? colorMeshSet.white;
     }
+    // Palette mode: show first filament's mesh
+    if (mode === 'palette-litho' && paletteMeshSet && paletteMeshSet.entries.length > 0) {
+      return paletteMeshSet.entries[0].mesh;
+    }
     return meshData;
-  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+  }, [mode, colorMeshSet, paletteMeshSet, activeColorChannel, meshData]);
 
   const hasThickness = !!(previewMesh?.thickness);
 
@@ -212,7 +217,7 @@ export default function MobileLayout({
               onClick={(e) => { e.stopPropagation(); setMode('color-litho'); }}
               className={cn(
                 "flex-1 py-2.5 text-xs font-medium rounded-lg transition-colors duration-75",
-                mode === 'color-litho' ? "bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20" : "text-gray-400"
+                (mode === 'color-litho' || mode === 'palette-litho') ? "bg-[#2563EB] text-white shadow-md shadow-[#2563EB]/20" : "text-gray-400"
               )}
             >
               {t('mode.colorLitho')}
@@ -397,7 +402,7 @@ export default function MobileLayout({
                       onClick={() => setMode('color-litho')}
                       className={cn(
                         "flex-1 py-2 text-xs font-medium rounded-lg transition-colors duration-75",
-                        mode === 'color-litho' ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400"
+                        (mode === 'color-litho' || mode === 'palette-litho') ? "bg-[#2563EB] text-white shadow-md" : "text-gray-400"
                       )}
                     >
                       {t('mode.colorLitho')}
@@ -424,8 +429,8 @@ export default function MobileLayout({
                   <ImageEditor />
                 </div>
 
-                {/* Image processing controls (or ColorLithoTab for color-litho mode) */}
-                {mode === 'color-litho' ? <ColorLithoTab /> : <ImageTab />}
+                {/* Image processing controls (or ColorLithoTab for color/palette-litho mode) */}
+                {(mode === 'color-litho' || mode === 'palette-litho') ? <ColorLithoTab /> : <ImageTab />}
               </>
             )}
 
