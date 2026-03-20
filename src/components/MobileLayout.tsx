@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { Upload, Box, Activity, Layers, Lightbulb, Palette, Camera, Undo2, Redo2, Thermometer } from 'lucide-react';
 import LithoPreview from './LithoPreview';
-import type { PaletteLayer } from './LithoPreview';
 import ErrorBoundary from './ErrorBoundary';
 import ImageTab from './tabs/ImageTab';
 import ColorLithoTab from './tabs/ColorLithoTab';
@@ -77,8 +76,15 @@ export default function MobileLayout({
 
   const hasImage = !!imageData;
 
-  // ── Derive preview mesh (Bug 2 fix: match desktop channel switching) ──
+  // ── Palette layer selector (which layer to preview) ──
+  const activePaletteLayer = useAppStore(s => s.activePaletteLayer);
+
+  // ── Derive preview mesh (matches desktop logic) ──
   const previewMesh = useMemo(() => {
+    if (mode === 'palette-litho' && paletteMeshSet && paletteMeshSet.entries.length > 0) {
+      const idx = Math.min(activePaletteLayer, paletteMeshSet.entries.length - 1);
+      return paletteMeshSet.entries[idx].mesh;
+    }
     if (mode === 'color-litho' && colorMeshSet) {
       if (activeColorChannel === 'composite') {
         return colorMeshSet.white; // composite uses white channel
@@ -86,25 +92,15 @@ export default function MobileLayout({
       const engineKey: CMYWChannel = activeColorChannel as CMYWChannel;
       return colorMeshSet[engineKey] ?? colorMeshSet.white;
     }
-    // In palette mode, previewMesh is NOT used — paletteLayers handles rendering.
     return meshData;
-  }, [mode, colorMeshSet, activeColorChannel, meshData]);
+  }, [mode, colorMeshSet, activeColorChannel, meshData, paletteMeshSet, activePaletteLayer]);
 
-  // ── Build palette layers for stacked 3D preview ──
-  const paletteLayerVisibility = useAppStore(s => s.paletteLayerVisibility);
-  const paletteLayers = useMemo<PaletteLayer[] | undefined>(() => {
-    if (mode !== 'palette-litho' || !paletteMeshSet || paletteMeshSet.entries.length === 0) {
-      return undefined;
-    }
-    return paletteMeshSet.entries.map((entry, i) => ({
-      positions: entry.mesh.positions!,
-      indices: entry.mesh.indices!,
-      normals: entry.mesh.normals ?? null,
-      color: entry.filamentHex,
-      visible: paletteLayerVisibility[i] !== false,
-      label: entry.filamentName,
-    }));
-  }, [mode, paletteMeshSet, paletteLayerVisibility]);
+  // ── Palette colour — hex of the currently selected layer's filament ──
+  const paletteColor = useMemo(() => {
+    if (mode !== 'palette-litho' || !paletteMeshSet || paletteMeshSet.entries.length === 0) return null;
+    const idx = Math.min(activePaletteLayer, paletteMeshSet.entries.length - 1);
+    return paletteMeshSet.entries[idx].filamentHex;
+  }, [mode, paletteMeshSet, activePaletteLayer]);
 
   const hasThickness = !!(previewMesh?.thickness);
 
@@ -260,7 +256,7 @@ export default function MobileLayout({
         }
       >
         {/* 3D Canvas */}
-        {(previewMesh || paletteLayers) ? (
+        {previewMesh ? (
           <ErrorBoundary region="3D Preview">
             <LithoPreview
               positions={previewMesh?.positions || null}
@@ -276,7 +272,7 @@ export default function MobileLayout({
               minThickness={lithoParams.baseThickness}
               maxThickness={lithoParams.maxThickness}
               isMobile={true}
-              paletteLayers={paletteLayers}
+              paletteColor={paletteColor}
             />
           </ErrorBoundary>
         ) : (

@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Minus, ChevronDown, AlertTriangle, Beaker, Layers, Settings2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Minus, ChevronDown, AlertTriangle, Beaker, Layers, Settings2, Eye } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../i18n';
 import { usePaletteStore } from '../store/usePaletteStore';
@@ -136,10 +136,10 @@ export default function AmsConfigurator() {
   const setLayerHeight = usePaletteStore(s => s.setLayerHeight);
   const setManagerOpen = usePaletteStore(s => s.setManagerOpen);
 
-  // Layer visibility toggles (for stacked 3D preview)
+  // Layer selector (which layer to preview in the 3D viewport)
   const paletteMeshSet = useAppStore(s => s.paletteMeshSet);
-  const paletteLayerVisibility = useAppStore(s => s.paletteLayerVisibility);
-  const togglePaletteLayer = useAppStore(s => s.togglePaletteLayer);
+  const activePaletteLayer = useAppStore(s => s.activePaletteLayer);
+  const setActivePaletteLayer = useAppStore(s => s.setActivePaletteLayer);
   const hasLayerData = !!(paletteMeshSet && paletteMeshSet.entries.length > 0);
 
   // Warnings
@@ -189,22 +189,19 @@ export default function AmsConfigurator() {
                 onSelect={(f) => assignSlot(slot.slot, f)}
               />
             </div>
-            {/* Eye-toggle: show/hide this layer in the 3D preview */}
+            {/* Preview-layer selector: clicking selects this layer for 3D preview */}
             {hasLayerData && idx < (paletteMeshSet?.entries.length ?? 0) && (
               <button
-                onClick={() => togglePaletteLayer(idx)}
+                onClick={() => setActivePaletteLayer(idx)}
                 className={cn(
                   "p-1.5 rounded-lg transition-all shrink-0",
-                  paletteLayerVisibility[idx] !== false
+                  activePaletteLayer === idx
                     ? "text-indigo-400 hover:bg-indigo-500/15"
                     : "text-gray-600 hover:bg-white/5"
                 )}
-                title={paletteLayerVisibility[idx] !== false ? 'Hide layer' : 'Show layer'}
+                title={activePaletteLayer === idx ? 'Viewing this layer' : 'Preview this layer'}
               >
-                {paletteLayerVisibility[idx] !== false
-                  ? <Eye className="w-3.5 h-3.5" />
-                  : <EyeOff className="w-3.5 h-3.5" />
-                }
+                <Eye className={cn("w-3.5 h-3.5", activePaletteLayer === idx && "drop-shadow-[0_0_3px_rgba(99,102,241,0.5)]")} />
               </button>
             )}
           </div>
