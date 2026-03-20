@@ -54,8 +54,20 @@ const fragmentShader = /* glsl */ `
     // Mix backlight color with surface color based on transmission
     vec3 litColor = mix(uSurfaceColor, uBacklightColor, transmission * backlight);
 
-    // Add slight emission for very thin areas (self-illumination)
-    vec3 emission = uBacklightColor * transmission * transmission * 0.3;
+    // --- Fresnel rim-light: edges catch light like real translucent plastic ---
+    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
+    vec3 rimColor = uBacklightColor * fresnel * 0.25 * (0.3 + transmission * 0.7);
+    litColor += rimColor;
+
+    // --- Specular highlight: surface sheen on the lit side ---
+    vec3 halfDir = normalize(viewDir + normalize(-uLightDir));
+    float spec = pow(max(dot(vNormal, halfDir), 0.0), 48.0);
+    litColor += vec3(1.0) * spec * 0.12 * transmission;
+
+    // HDR emission for very thin areas — bloom post-processing picks this up
+    // Values >1.0 intentionally exceed LDR so the bloom pass creates natural glow
+    vec3 emission = uBacklightColor * transmission * transmission * 0.6;
 
     // Combine
     vec3 finalColor = litColor + emission;

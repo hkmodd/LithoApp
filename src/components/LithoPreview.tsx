@@ -1,9 +1,10 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stage, Grid } from '@react-three/drei';
+import { OrbitControls, Stage, Grid, ContactShadows, Environment } from '@react-three/drei';
 import { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import TranslucentMaterial from './TranslucentMaterial';
 import HeatmapMaterial from './HeatmapMaterial';
+import PostFX from './PostFX';
 
 interface LithoPreviewProps {
   positions: Float32Array | null;
@@ -111,9 +112,12 @@ export default function LithoPreview({
       {simulateLight && !useTranslucent && (
         <directionalLight position={[0, 0, -100]} intensity={3.5} color="#ffffff" />
       )}
+
+      {/* HDRI environment for realistic PBR reflections */}
+      <Environment preset="sunset" background={false} />
       
       <Stage
-        environment="city"
+        environment={null}
         intensity={useTranslucent ? 0.15 : 0.4}
         adjustCamera={true}
         shadows
@@ -130,8 +134,9 @@ export default function LithoPreview({
             /* Color-mapped mode: project source image onto mesh */
             <meshStandardMaterial
               map={texture}
-              roughness={0.4}
-              metalness={0.05}
+              roughness={0.35}
+              metalness={0.02}
+              envMapIntensity={0.6}
               wireframe={wireframe}
               side={THREE.FrontSide}
             />
@@ -143,28 +148,46 @@ export default function LithoPreview({
               wireframe={wireframe}
             />
           ) : simulateLight ? (
+            /* Enhanced PBR: simulate glossy PLA/resin plastic */
             <meshPhysicalMaterial
               color="#ffffff"
               transmission={0.8}
               opacity={1}
               metalness={0.0}
-              roughness={0.2}
+              roughness={0.15}
               ior={1.5}
               thickness={5.0}
+              clearcoat={0.4}
+              clearcoatRoughness={0.1}
+              sheen={0.3}
+              sheenRoughness={0.4}
+              sheenColor="#FFF8E7"
+              envMapIntensity={0.8}
               wireframe={wireframe}
               side={THREE.FrontSide}
             />
           ) : (
+            /* Default: clean, slightly warm plastic */
             <meshStandardMaterial
               color="#f0f0f0"
-              roughness={0.3}
-              metalness={0.1}
+              roughness={0.25}
+              metalness={0.05}
+              envMapIntensity={0.5}
               wireframe={wireframe}
               side={THREE.FrontSide}
             />
           )}
         </mesh>
       </Stage>
+
+      {/* Soft contact shadows for grounding */}
+      <ContactShadows
+        position={[0, -0.5, 0]}
+        opacity={0.4}
+        blur={2.5}
+        far={150}
+        resolution={isMobile ? 128 : 256}
+      />
       
       {/* 3D Printer Bed (Floor) */}
       <Grid 
@@ -174,6 +197,9 @@ export default function LithoPreview({
         cellColor="#141414" 
         position={[0, -0.01, 0]} 
       />
+
+      {/* Screen-space post-processing */}
+      <PostFX isMobile={isMobile} />
       
       <OrbitControls
         makeDefault

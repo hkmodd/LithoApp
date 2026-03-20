@@ -1,8 +1,11 @@
 /**
- * Color Lithophane Engine — CMYW Channel Generation
+ * Color Lithophane Engine — CMYW Channel Generation + Palette Mode
  *
- * Converts an RGB image into 5 separate greyscale images (White base, Yellow,
- * Magenta, Cyan, White top) and generates 5 independent lithophane meshes.
+ * Converts an RGB image into either:
+ * 1. 5 separate greyscale images (White base, Yellow, Magenta, Cyan, White top)
+ *    and generates 5 independent lithophane meshes (CMYW mode).
+ * 2. N separate per-filament thickness maps using calibrated Beer-Lambert
+ *    colour combinations (Palette mode).
  *
  * Key insight: K (black) is NOT a separate physical channel. Instead, the White
  * layer's thickness controls luminosity:
@@ -23,7 +26,13 @@ import {
   ColorMeshSet,
   CMYWChannel,
   COLOR_CHANNELS,
+  PaletteMeshSet,
+  PaletteMeshEntry,
 } from './types';
+
+// Palette-mode colour science now runs entirely in WASM (build_palette_maps).
+// Only PrintConfig type is needed for the TS orchestration layer.
+import type { PrintConfig } from '../models/filamentPalette';
 
 /** Per-pixel CMYW decomposition result (values 0–1) */
 interface CMYWPixel {
@@ -242,3 +251,152 @@ export function generateColorLitho(
 
   return results as ColorMeshSet;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Palette-Mode Lithophane Engine
+// Colour science pipeline (palette build, CIEDE2000 matching, thickness extraction)
+// runs entirely in WASM via build_palette_maps(). TS orchestrates mesh generation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Generate a palette-mode color lithophane set.
+ *
+ * Unlike the fixed CMYW mode, this generates a variable number of meshes
+ * (one per active filament) using calibrated colour combinations.
+ *
+ * Pipeline:
+ * 1. Build achievable colour palette from PrintConfig
+ * 2. Match every pixel to the closest achievable combo (CIEDE2000)
+ * 3. For each filament, extract a greyscale thickness map
+ * 4. Generate mesh via WASM for each filament
+ *
+ * @returns PaletteMeshSet with one entry per filament + match quality stats
+ */
+export async function generatePaletteLitho(
+  imageData: ImageData,
+  width: number,
+  height: number,
+  params: LithoParams,
+  printConfig: PrintConfig,
+  postProgress: ProgressCallback,
+  wasmModule: WasmLithoModule
+): Promise<PaletteMeshSet> {
+  // ── Step 1–2: Build palette + match pixels + extract thickness maps in WASM ──
+  // Entire heavy pipeline runs in Rust: palette build, CIEDE2000 matching,
+  // per-filament greyscale extraction. ~10-50× faster than the JS path.
+  const wasmPrintConfig = {
+    slots: printConfig.slots.map(s => ({
+      slot: s.slot,
+      filament: {
+        id: s.filament.id,
+        name: s.filament.name,
+        hexColor: s.filament.hexColor,
+        td: s.filament.td,
+      },
+    })),
+    maxLayers: printConfig.maxLayers,
+    layerHeight: printConfig.layerHeight,
+    baseFilament: {
+      id: printConfig.baseFilament.id,
+      name: printConfig.baseFilament.name,
+      hexColor: printConfig.baseFilament.hexColor,
+      td: printConfig.baseFilament.td,
+    },
+  };
+
+  const paletteProgress: ProgressCallback = (p, msg) => {
+    // Map WASM 0–100% to our 0–40% range
+    postProgress(Math.round(p * 0.4), msg);
+  };
+
+  const paletteResult = wasmModule.build_palette_maps(
+    imageData.data,
+    width,
+    height,
+    wasmPrintConfig,
+    paletteProgress
+  );
+
+  const { filament_maps, stats: matchStats } = paletteResult;
+
+  postProgress(40, `Match complete: avg ΔE=${matchStats.avgDeltaE.toFixed(1)}, ${matchStats.goodMatchPercent.toFixed(0)}% good`);
+
+  // ── Step 3: For each filament, generate mesh from the greyscale thickness map ──
+  const entries: PaletteMeshEntry[] = [];
+  const meshPhaseStart = 40;
+  const meshPhaseWeight = 55; // 40–95% for mesh generation
+  const perFilamentWeight = meshPhaseWeight / filament_maps.length;
+
+  const layerHeight = params.colorLithoParams?.layerHeight ?? 0.1;
+
+  for (let fi = 0; fi < filament_maps.length; fi++) {
+    const fmap = filament_maps[fi];
+    const baseProgress = meshPhaseStart + fi * perFilamentWeight;
+    const isBase = fi === 0;
+
+    postProgress(
+      Math.round(baseProgress),
+      `Generating ${fmap.name} mesh...`
+    );
+
+    // Build params for this filament layer
+    const filamentParams: LithoParams = {
+      ...params,
+      invert: false,
+      contrast: 1.0,
+      brightness: 0.0,
+      sharpness: 0.0,
+    };
+
+    if (!isBase) {
+      filamentParams.baseThickness = 0.0;
+      filamentParams.maxThickness = printConfig.maxLayers * layerHeight;
+    }
+
+    // Generate mesh via WASM from the greyscale thickness map
+    const filamentProgress: ProgressCallback = (p, msg) => {
+      postProgress(
+        Math.round(baseProgress + (p / 100) * perFilamentWeight),
+        `${fmap.name}: ${msg}`
+      );
+    };
+
+    const result = wasmModule.generate_lithophane(
+      fmap.greyscale,
+      width,
+      height,
+      filamentParams,
+      filamentProgress
+    );
+
+    entries.push({
+      filamentId: fmap.id,
+      filamentName: fmap.name,
+      filamentHex: fmap.hex,
+      mesh: {
+        positions: result.positions,
+        indices: result.indices,
+        normals: result.normals,
+        uvs: result.uvs,
+        stats: result.stats,
+      },
+    });
+  }
+
+  postProgress(95, 'Finalising palette lithophane...');
+
+  const paletteMeshSet: PaletteMeshSet = {
+    entries,
+    stats: {
+      avgDeltaE: matchStats.avgDeltaE,
+      maxDeltaE: matchStats.maxDeltaE,
+      goodMatchPercent: matchStats.goodMatchPercent,
+      usedColors: matchStats.usedColors,
+    },
+  };
+
+  postProgress(100, `Palette lithophane complete (${entries.length} filaments, avg ΔE=${matchStats.avgDeltaE.toFixed(1)})`);
+
+  return paletteMeshSet;
+}
+

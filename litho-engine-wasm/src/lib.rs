@@ -5,6 +5,8 @@ mod indices;
 mod hanger;
 mod normals;
 mod stl;
+mod color_science;
+mod palette;
 
 use wasm_bindgen::prelude::*;
 use js_sys::Function;
@@ -187,4 +189,137 @@ pub fn encode_stl(
 ) -> js_sys::Uint8Array {
     let buf = stl::encode_binary_stl(positions, indices);
     js_sys::Uint8Array::from(buf.as_slice())
+}
+
+/// Build palette-mode thickness maps entirely in WASM.
+///
+/// # Arguments
+/// * `pixels`        – Raw RGBA pixel data (Uint8ClampedArray from ImageData)
+/// * `width`         – Image width in pixels
+/// * `height`        – Image height in pixels
+/// * `config_js`     – PrintConfig object (JS → serde)
+/// * `progress_fn`   – JS callback `(progress: number, message: string) => void`
+///
+/// # Returns
+/// JS object: `{
+///   filament_maps: [{ id, name, hex, greyscale: Uint8ClampedArray }],
+///   stats: { avgDeltaE, maxDeltaE, goodMatchPercent, usedColors, paletteSize }
+/// }`
+#[wasm_bindgen]
+pub fn build_palette_maps(
+    pixels: &[u8],
+    width: u32,
+    height: u32,
+    config_js: JsValue,
+    progress_fn: &Function,
+) -> Result<JsValue, JsValue> {
+    use palette::{
+        build_achievable_palette, extract_thickness_map, match_pixels, PrintConfigDef,
+    };
+
+    // Parse the PrintConfig
+    let config: PrintConfigDef = serde_wasm_bindgen::from_value(config_js)
+        .map_err(|e| JsValue::from_str(&format!("Failed to parse PrintConfig: {}", e)))?;
+
+    // Step 1: Build achievable palette
+    let _ = progress_fn.call2(
+        &JsValue::NULL,
+        &JsValue::from(5),
+        &JsValue::from("Building achievable colour palette..."),
+    );
+    let palette_entries = build_achievable_palette(&config, 1.0);
+    let palette_size = palette_entries.len();
+
+    let _ = progress_fn.call2(
+        &JsValue::NULL,
+        &JsValue::from(10),
+        &JsValue::from(format!("Palette: {} achievable colours", palette_size).as_str()),
+    );
+
+    // Step 2: Match all pixels
+    let _ = progress_fn.call2(
+        &JsValue::NULL,
+        &JsValue::from(15),
+        &JsValue::from("Matching pixels to palette (CIEDE2000)..."),
+    );
+    let match_result = match_pixels(pixels, width, height, &palette_entries);
+
+    let _ = progress_fn.call2(
+        &JsValue::NULL,
+        &JsValue::from(50),
+        &JsValue::from(
+            format!(
+                "Match complete: avg ΔE={:.1}, {:.0}% good",
+                match_result.avg_delta_e, match_result.good_match_percent
+            )
+            .as_str(),
+        ),
+    );
+
+    // Step 3: Extract thickness maps for each filament
+    // Index 0 = base filament, 1+ = color slots
+    let slot_count = config.slots.len() + 1; // +1 for base
+    let filament_maps = js_sys::Array::new();
+
+    for fi in 0..slot_count {
+        let (fid, fname, fhex) = if fi == 0 {
+            (
+                config.base_filament.id.as_str(),
+                config.base_filament.name.as_str(),
+                config.base_filament.hex_color.as_str(),
+            )
+        } else {
+            let s = &config.slots[fi - 1];
+            (
+                s.filament.id.as_str(),
+                s.filament.name.as_str(),
+                s.filament.hex_color.as_str(),
+            )
+        };
+
+        let progress_pct = 50 + (fi * 40 / slot_count);
+        let _ = progress_fn.call2(
+            &JsValue::NULL,
+            &JsValue::from(progress_pct as u32),
+            &JsValue::from(format!("Extracting {} thickness map...", fname).as_str()),
+        );
+
+        let greyscale_rgba =
+            extract_thickness_map(&match_result, &palette_entries, fi, config.max_layers, width, height);
+
+        // Build entry object
+        let entry = js_sys::Object::new();
+        js_sys::Reflect::set(&entry, &"id".into(), &JsValue::from(fid))?;
+        js_sys::Reflect::set(&entry, &"name".into(), &JsValue::from(fname))?;
+        js_sys::Reflect::set(&entry, &"hex".into(), &JsValue::from(fhex))?;
+        let gs_arr = js_sys::Uint8ClampedArray::from(greyscale_rgba.as_slice());
+        js_sys::Reflect::set(&entry, &"greyscale".into(), &gs_arr)?;
+
+        filament_maps.push(&entry);
+    }
+
+    // Build stats
+    let stats = js_sys::Object::new();
+    js_sys::Reflect::set(&stats, &"avgDeltaE".into(), &JsValue::from(match_result.avg_delta_e))?;
+    js_sys::Reflect::set(&stats, &"maxDeltaE".into(), &JsValue::from(match_result.max_delta_e))?;
+    js_sys::Reflect::set(
+        &stats,
+        &"goodMatchPercent".into(),
+        &JsValue::from(match_result.good_match_percent),
+    )?;
+    js_sys::Reflect::set(&stats, &"usedColors".into(), &JsValue::from(match_result.used_colors as u32))?;
+    js_sys::Reflect::set(&stats, &"paletteSize".into(), &JsValue::from(palette_size as u32))?;
+
+    // Build result object
+    let result = js_sys::Object::new();
+    js_sys::Reflect::set(&result, &"filament_maps".into(), &filament_maps)?;
+    js_sys::Reflect::set(&result, &"stats".into(), &stats)?;
+
+    let _ = progress_fn.call2(
+        &JsValue::NULL,
+        &JsValue::from(100),
+        &JsValue::from("Palette maps complete"),
+    );
+
+    Ok(result.into())
 }

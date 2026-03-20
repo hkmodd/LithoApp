@@ -1,6 +1,6 @@
 // Core engine interface for different generation modes
 
-export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter' | 'color-litho';
+export type AppMode = 'lithophane' | 'extrusion' | 'cookie-cutter' | 'color-litho' | 'palette-litho';
 export type LithoShape = 'flat' | 'arc' | 'cylinder' | 'sphere' | 'heart' | 'lampshade' | 'vase' | 'dome';
 
 /** Physical CMYW plate identifiers used by the engine (K is encoded in White thickness) */
@@ -93,6 +93,24 @@ export interface ColorMeshSet {
   white_top: MeshEngineResult;
 }
 
+/** Result of palette-mode lithophane generation: one mesh per active filament */
+export interface PaletteMeshEntry {
+  filamentId: string;
+  filamentName: string;
+  filamentHex: string;
+  mesh: MeshEngineResult;
+}
+
+export interface PaletteMeshSet {
+  entries: PaletteMeshEntry[];
+  stats: {
+    avgDeltaE: number;
+    maxDeltaE: number;
+    goodMatchPercent: number;
+    usedColors: number;
+  };
+}
+
 /** All engine channel names in print order: White base → Yellow → Magenta → Cyan → White top */
 export const COLOR_CHANNELS: CMYWChannel[] = ['white', 'yellow', 'magenta', 'cyan', 'white_top'];
 
@@ -107,7 +125,7 @@ export const CHANNEL_COLORS: Record<CMYWChannel, string> = {
 
 export interface WorkerRequest {
   id: number; // generation counter for race-condition prevention
-  mode: AppMode | 'encode-stl' | 'encode-stl-pack';
+  mode: AppMode | 'encode-stl' | 'encode-stl-pack' | 'encode-palette-stl-pack';
   imageData: ImageData;
   width: number;
   height: number;
@@ -117,12 +135,17 @@ export interface WorkerRequest {
   stlIndices?: Uint32Array;
   // Multi-STL pack encoding (only used when mode === 'encode-stl-pack')
   stlPack?: Record<CMYWChannel, { positions: Float32Array; indices: Uint32Array }>;
+  // Palette STL pack encoding (only used when mode === 'encode-palette-stl-pack')
+  palettePack?: PaletteMeshEntry[];
+  // PrintConfig for palette-litho mode (serialized)
+  printConfigJson?: string;
 }
 
 export type WorkerResponse =
   | { type: 'progress'; id: number; progress: number; message: string }
   | { type: 'complete'; id: number; positions: Float32Array; indices: Uint32Array; normals: Float32Array; uvs?: Float32Array; thickness?: Float32Array; stats: MeshStats }
   | { type: 'color-complete'; id: number; colorMeshSet: ColorMeshSet }
+  | { type: 'palette-complete'; id: number; paletteMeshSet: PaletteMeshSet }
   | { type: 'stl-complete'; id: number; stlBuffer: Uint8Array }
   | { type: 'stl-pack-complete'; id: number; zipBuffer: Uint8Array }
   | { type: 'error'; id: number; message: string };
@@ -153,5 +176,28 @@ export interface WasmLithoModule {
     positions: Float32Array,
     indices: Uint32Array,
   ): Uint8Array;
+
+  /** Build palette-mode thickness maps entirely in WASM (CIEDE2000 matching). */
+  build_palette_maps(
+    imageData: Uint8ClampedArray,
+    width: number,
+    height: number,
+    printConfig: unknown,
+    postProgress: ProgressCallback,
+  ): {
+    filament_maps: Array<{
+      id: string;
+      name: string;
+      hex: string;
+      greyscale: Uint8ClampedArray;
+    }>;
+    stats: {
+      avgDeltaE: number;
+      maxDeltaE: number;
+      goodMatchPercent: number;
+      usedColors: number;
+      paletteSize: number;
+    };
+  };
 }
 
