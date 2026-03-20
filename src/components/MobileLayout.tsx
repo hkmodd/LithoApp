@@ -429,8 +429,9 @@ export default function MobileLayout({
                   <ImageEditor />
                 </div>
 
-                {/* Image processing controls (or ColorLithoTab for color/palette-litho mode) */}
-                {(mode === 'color-litho' || mode === 'palette-litho') ? <ColorLithoTab /> : <ImageTab />}
+                {/* Image processing controls (+ ColorLithoTab for color/palette-litho mode) */}
+                {(mode === 'color-litho' || mode === 'palette-litho') && <ColorLithoTab />}
+                <ImageTab />
               </>
             )}
 

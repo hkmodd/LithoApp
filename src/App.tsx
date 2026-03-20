@@ -834,7 +834,7 @@ export default function App() {
               <div className={cn("space-y-6 transition-opacity duration-500", !imageData && "opacity-20 pointer-events-none")}>
                 <div className="flex p-1 bg-white/5 rounded-xl">
                   {(mode === 'color-litho' || mode === 'palette-litho'
-                    ? (['color', 'geometry', 'frame'] as const)
+                    ? (['image', 'color', 'geometry', 'frame'] as const)
                     : (['image', 'geometry', 'frame'] as const)
                   ).map((tab) => (
                     <button 
@@ -851,7 +851,7 @@ export default function App() {
                 </div>
 
                 {/* Tab Content: Image */}
-                {activeTab === 'image' && mode !== 'color-litho' && mode !== 'palette-litho' && <ImageTab />}
+                {activeTab === 'image' && <ImageTab />}
 
                 {/* Tab Content: Color */}
                 {activeTab === 'color' && (mode === 'color-litho' || mode === 'palette-litho') && <ColorLithoTab />}

@@ -113,9 +113,7 @@ export const usePaletteStore = create<PaletteState>((set, get) => ({
     const updated = get().filamentLibrary.filter(f => f.id !== id);
     saveLibrary(updated);
     // Also remove from AMS slots if assigned
-    const updatedSlots = get().amsSlots.map(s =>
-      s.filament.id === id ? { ...s, filament: null as any } : s
-    ).filter(s => s.filament != null);
+    const updatedSlots = get().amsSlots.filter(s => s.filament.id !== id);
     saveSlots(updatedSlots);
     set({ filamentLibrary: updated, amsSlots: updatedSlots });
   },

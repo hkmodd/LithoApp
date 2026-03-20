@@ -68,7 +68,10 @@ export default function ExportBar() {
   const animatedTriangles = useCountUp(triangleCount);
   const fileSizeMB = meshData ? ((84 + meshData.stats.triangles * 50) / (1024 * 1024)) : 0;
 
-  const disabled = !meshData || isProcessing;
+  const hasOutput = mode === 'color-litho' ? !!colorMeshSet
+    : mode === 'palette-litho' ? !!(paletteMeshSet?.entries?.length)
+    : !!meshData;
+  const disabled = !hasOutput || isProcessing;
 
   /* ─── download handlers ──────────────────────────────────── */
   const triggerDownload = useCallback((blob: Blob, filename: string) => {

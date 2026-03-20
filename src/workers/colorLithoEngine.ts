@@ -194,9 +194,8 @@ export function generateColorLitho(
     const channelParams: LithoParams = {
       ...params,
       invert: false, // channel extraction already handles polarity
-      contrast: 1.0,
-      brightness: 0.0,
-      sharpness: 0.0,
+      // contrast, brightness, sharpness are inherited from params
+      // so the user's image adjustments are respected
     };
 
     if (isWhiteTop) {
