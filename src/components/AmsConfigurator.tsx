@@ -189,21 +189,26 @@ export default function AmsConfigurator() {
                 onSelect={(f) => assignSlot(slot.slot, f)}
               />
             </div>
-            {/* Preview-layer selector: clicking selects this layer for 3D preview */}
-            {hasLayerData && idx < (paletteMeshSet?.entries.length ?? 0) && (
-              <button
-                onClick={() => setActivePaletteLayer(idx)}
-                className={cn(
-                  "p-1.5 rounded-lg transition-all shrink-0",
-                  activePaletteLayer === idx
-                    ? "text-indigo-400 hover:bg-indigo-500/15"
-                    : "text-gray-600 hover:bg-white/5"
-                )}
-                title={activePaletteLayer === idx ? 'Viewing this layer' : 'Preview this layer'}
-              >
-                <Eye className={cn("w-3.5 h-3.5", activePaletteLayer === idx && "drop-shadow-[0_0_3px_rgba(99,102,241,0.5)]")} />
-              </button>
-            )}
+            {/* Preview-layer selector: find the correct entry index by filament ID */}
+            {hasLayerData && (() => {
+              const entryIdx = paletteMeshSet?.entries.findIndex(e => e.filamentId === slot.filament.id) ?? -1;
+              if (entryIdx < 0) return null;
+              const isActive = activePaletteLayer === entryIdx;
+              return (
+                <button
+                  onClick={() => setActivePaletteLayer(entryIdx)}
+                  className={cn(
+                    "p-1.5 rounded-lg transition-all shrink-0",
+                    isActive
+                      ? "text-indigo-400 hover:bg-indigo-500/15"
+                      : "text-gray-600 hover:bg-white/5"
+                  )}
+                  title={isActive ? 'Viewing this layer' : 'Preview this layer'}
+                >
+                  <Eye className={cn("w-3.5 h-3.5", isActive && "drop-shadow-[0_0_3px_rgba(99,102,241,0.5)]")} />
+                </button>
+              );
+            })()}
           </div>
         ))}
       </div>
