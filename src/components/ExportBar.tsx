@@ -64,14 +64,36 @@ export default function ExportBar() {
   const [colorState, setColorState] = useState<DownloadState>('idle');
   const [zipState, setZipState] = useState<DownloadState>('idle');
 
-  const triangleCount = meshData?.stats.triangles ?? 0;
-  const animatedTriangles = useCountUp(triangleCount);
-  const fileSizeMB = meshData ? ((84 + meshData.stats.triangles * 50) / (1024 * 1024)) : 0;
+  /* ─── compute stats for any mode ──────────────────────── */
+  const { totalTriangles, estSizeMB } = (() => {
+    if (mode === 'color-litho' && colorMeshSet) {
+      const tris = COLOR_CHANNELS.reduce((sum, ch) => sum + colorMeshSet[ch].stats.triangles, 0);
+      // ZIP: 5 binary STLs (each 84 + tri*50 bytes), ~0% compression on binary
+      const rawBytes = COLOR_CHANNELS.reduce((sum, ch) => sum + 84 + colorMeshSet[ch].stats.triangles * 50, 0);
+      return { totalTriangles: tris, estSizeMB: rawBytes / (1024 * 1024) };
+    }
+    if (mode === 'palette-litho' && paletteMeshSet?.entries?.length) {
+      const tris = paletteMeshSet.entries.reduce((sum, e) => sum + e.mesh.stats.triangles, 0);
+      const rawBytes = paletteMeshSet.entries.reduce((sum, e) => sum + 84 + e.mesh.stats.triangles * 50, 0);
+      return { totalTriangles: tris, estSizeMB: rawBytes / (1024 * 1024) };
+    }
+    if (meshData) {
+      const tris = meshData.stats.triangles;
+      return { totalTriangles: tris, estSizeMB: (84 + tris * 50) / (1024 * 1024) };
+    }
+    return { totalTriangles: 0, estSizeMB: 0 };
+  })();
+
+  const animatedTriangles = useCountUp(totalTriangles);
 
   const hasOutput = mode === 'color-litho' ? !!colorMeshSet
     : mode === 'palette-litho' ? !!(paletteMeshSet?.entries?.length)
     : !!meshData;
   const disabled = !hasOutput || isProcessing;
+
+  const plateCount = mode === 'color-litho' && colorMeshSet ? COLOR_CHANNELS.length
+    : mode === 'palette-litho' && paletteMeshSet ? paletteMeshSet.entries.length
+    : 0;
 
   /* ─── download handlers ──────────────────────────────────── */
   const triggerDownload = useCallback((blob: Blob, filename: string) => {
@@ -234,20 +256,24 @@ export default function ExportBar() {
   return (
     <div className="export-panel">
       {/* ─── Stats Row ─────────────────────────────────────── */}
-      {meshData && (
+      {hasOutput && totalTriangles > 0 && (
         <div className="export-stats">
           <div className="export-stat-card">
             <Triangle className="w-3 h-3 text-neural-blue opacity-60" />
             <div>
-              <span className="export-stat-label">{t('export.triangles')}</span>
+              <span className="export-stat-label">
+                {plateCount > 0 ? `${t('export.triangles')} (${plateCount} plates)` : t('export.triangles')}
+              </span>
               <span className="export-stat-value">{animatedTriangles.toLocaleString()}</span>
             </div>
           </div>
           <div className="export-stat-card">
             <FileBox className="w-3 h-3 text-neural-blue opacity-60" />
             <div>
-              <span className="export-stat-label">{t('export.estSize')}</span>
-              <span className="export-stat-value export-stat-accent">~{fileSizeMB.toFixed(1)} MB</span>
+              <span className="export-stat-label">
+                {plateCount > 0 ? `${t('export.estSize')} (ZIP)` : t('export.estSize')}
+              </span>
+              <span className="export-stat-value export-stat-accent">~{estSizeMB.toFixed(1)} MB</span>
             </div>
           </div>
         </div>
@@ -272,11 +298,12 @@ export default function ExportBar() {
           <button
             onClick={handleExportZip}
             disabled={disabled}
-            className="export-btn export-btn-ghost"
+            className="export-btn export-btn-accent"
             title={t('color.exportAll')}
           >
+            <div className="export-btn-shimmer" />
             {stateIcon(zipState, <Archive className="w-4 h-4" />)}
-            <span className="export-btn-label">{t('color.exportAll')}</span>
+            <span className="export-btn-format">ZIP</span>
           </button>
         )}
 
@@ -285,11 +312,12 @@ export default function ExportBar() {
           <button
             onClick={handleExportPaletteZip}
             disabled={disabled}
-            className="export-btn export-btn-ghost"
+            className="export-btn export-btn-accent"
             title={t('color.exportAll')}
           >
+            <div className="export-btn-shimmer" />
             {stateIcon(zipState, <Archive className="w-4 h-4" />)}
-            <span className="export-btn-label">{t('color.exportAll')}</span>
+            <span className="export-btn-format">ZIP</span>
           </button>
         )}
 
