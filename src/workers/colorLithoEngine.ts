@@ -339,12 +339,15 @@ export async function generatePaletteLitho(
     );
 
     // Build params for this filament layer
+    // IMPORTANT: preserve user's contrast/brightness/sharpness settings!
+    // These control WASM-side image processing (sharpening filter, histogram
+    // adjustments) which improve mesh detail for ALL layer types.
+    // The WASM build_palette_maps already handles colour science separately.
     const filamentParams: LithoParams = {
       ...params,
       invert: false,
-      contrast: 1.0,
-      brightness: 0.0,
-      sharpness: 0.0,
+      // contrast, brightness, sharpness are inherited from params
+      // so the user's image adjustments are respected (matching CMYW behaviour)
     };
 
     if (!isBase) {
